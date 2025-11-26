@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Private Chat</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+<div id="auth-section">
+    <h2>Welcome</h2>
+    <button id="googleLogin">Sign in with Google</button>
+</div>
+
+<div id="app" class="hidden">
+    
+    <div id="top-bar">
+        <span id="userName"></span>
+        <button id="logoutBtn">Logout</button>
+    </div>
+
+    <div id="room-section">
+        <button id="createRoom">Create Private Room</button>
+        <div id="roomLinkBox" class="hidden">
+            <p>Your private room link:</p>
+            <input id="roomLink" readonly />
+            <button id="copyLink">Copy</button>
+            <p id="copiedMsg" class="hidden">Copied!</p>
+        </div>
+    </div>
+
+    <div id="chat-section" class="hidden">
+        <div id="messages"></div>
+
+        <div id="messageBox">
+            <input id="messageInput" placeholder="Type message..." />
+            <button id="sendBtn">Send</button>
+        </div>
+    </div>
+
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
