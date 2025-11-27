@@ -1,184 +1,153 @@
-// -----------------------
-//   Firebase IMPORTS
-// -----------------------
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { 
-    getAuth, GoogleAuthProvider, signInWithPopup, signOut 
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import {
-    getFirestore, doc, setDoc, getDoc, updateDoc,
-    onSnapshot, addDoc, collection, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, addDoc, collection, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-// -----------------------
-//   Firebase CONFIG (YOURS)
-// -----------------------
+// Firebase config
 const firebaseConfig = {
-    apiKey: "AIzaSyAEWxTJ1loQkXM1ShwAAF1J15RQLlCgdGM",
-    authDomain: "msgapp-262c9.firebaseapp.com",
-    projectId: "msgapp-262c9",
-    storageBucket: "msgapp-262c9.firebasestorage.app",
-    messagingSenderId: "122648836940",
-    appId: "1:122648836940:web:a098c052f65f3eb305ade9"
+  apiKey: "AIzaSyAEWxTJ1loQkXM1ShwAAF1J15RQLlCgdGM",
+  authDomain: "msgapp-262c9.firebaseapp.com",
+  projectId: "msgapp-262c9",
+  storageBucket: "msgapp-262c9.appspot.com",
+  messagingSenderId: "122648836940",
+  appId: "1:122648836940:web:a098c052f65f3eb305ade9"
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth();
-const db = getFirestore();
+const db = getFirestore(app);
 
-// -----------------------
-//   UI ELEMENTS
-// -----------------------
-const authSection = document.getElementById("auth-section");
-const appSection = document.getElementById("app");
-const userNameLabel = document.getElementById("userName");
+// DOM
+const createBtn = document.getElementById('create-chat');
+const joinBtnMain = document.getElementById('join-chat');
+const joinSection = document.getElementById('join-section');
+const joinRoomBtn = document.getElementById('join-room');
+const roomIdInput = document.getElementById('room-id');
+const roomPassInput = document.getElementById('room-pass');
+const roomIdDisplay = document.getElementById('room-id-display');
+const roomPassDisplay = document.getElementById('room-pass-display');
+const linkDisplay = document.getElementById('link-display');
+const messagesDiv = document.getElementById('messages');
+const messageInput = document.getElementById('message-input');
+const sendBtn = document.getElementById('send');
 
-const createRoomBtn = document.getElementById("createRoom");
-const roomLinkBox = document.getElementById("roomLinkBox");
-const roomLinkInput = document.getElementById("roomLink");
-const copyLinkBtn = document.getElementById("copyLink");
-const copiedMsg = document.getElementById("copiedMsg");
+const profileBtn = document.getElementById('profile-btn');
+const profileModal = document.getElementById('profile-modal');
+const nicknameInput = document.getElementById('nickname-input');
+const avatarInput = document.getElementById('avatar-input');
+const saveProfileBtn = document.getElementById('save-profile');
 
-const chatSection = document.getElementById("chat-section");
-const messagesDiv = document.getElementById("messages");
-const messageInput = document.getElementById("messageInput");
-const sendBtn = document.getElementById("sendBtn");
+let currentRoomId = '';
+let userId = `user-${Math.floor(Math.random()*10000)}`;
+let nickname = "Anonymous";
+let avatarUrl = "";
 
-// -----------------------
-//   GLOBAL STATE
-// -----------------------
-let currentUser = null;
-let currentRoomId = null;
+// Helper
+function randomString(len=6){ const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; let str=''; for(let i=0;i<len;i++) str+=chars.charAt(Math.floor(Math.random()*chars.length)); return str; }
 
-// -----------------------
-//   AUTH
-// -----------------------
-document.getElementById("googleLogin").onclick = async () => {
-    try {
-        const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
-
-        currentUser = result.user;
-        userNameLabel.textContent = currentUser.displayName;
-
-        authSection.classList.add("hidden");
-        appSection.classList.remove("hidden");
-
-        checkIfOpeningRoom();
-    } catch (e) {
-        console.log(e);
-        alert("Login failed");
-    }
-};
-
-document.getElementById("logoutBtn").onclick = async () => {
-    await signOut(auth);
-    location.reload();
-};
-
-// -----------------------
-//   CREATE ROOM
-// -----------------------
-createRoomBtn.onclick = async () => {
-    const roomRef = doc(collection(db, "rooms"));
-    await setDoc(roomRef, {
-        owner: currentUser.uid,
-        claimed: false,
-        createdAt: serverTimestamp()
-    });
-
-    const link = ${window.location.origin}?room=${roomRef.id};
-    roomLinkInput.value = link;
-
-    roomLinkBox.classList.remove("hidden");
-};
-
-// -----------------------
-//   COPY ROOM LINK
-// -----------------------
-copyLinkBtn.onclick = () => {
-    navigator.clipboard.writeText(roomLinkInput.value);
-    copiedMsg.classList.remove("hidden");
-    setTimeout(() => copiedMsg.classList.add("hidden"), 1000);
-};
-
-// -----------------------
-//   JOIN ROOM FROM LINK
-// -----------------------
-async function checkIfOpeningRoom() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomId = urlParams.get("room");
-
-    if (!roomId) return;
-
-    currentRoomId = roomId;
-
-    const roomRef = doc(db, "rooms", roomId);
-    const roomSnap = await getDoc(roomRef);
-
-    if (!roomSnap.exists()) {
-        alert("Room does not exist.");
-        return;
-    }
-
-    const room = roomSnap.data();
-
-    if (room.claimed === true && room.other !== currentUser.uid) {
-        alert("Room already claimed by someone else.");
-        return;
-    }
-
-    // claim room if not claimed
-    if (!room.claimed) {
-        await updateDoc(roomRef, {
-            claimed: true,
-            other: currentUser.uid
-        });
-    }
-
-    startChat(roomId);
+// Profile
+profileBtn.onclick = () => profileModal.style.display='flex';
+saveProfileBtn.onclick = ()=>{
+  const name = nicknameInput.value.trim();
+  if(name) nickname=name;
+  const file = avatarInput.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = ()=>{ avatarUrl = reader.result; }
+    reader.readAsDataURL(file);
+  }
+  profileModal.style.display='none';
 }
 
-// -----------------------
-//   REAL-TIME CHAT
-// -----------------------
-function startChat(roomId) {
-    chatSection.classList.remove("hidden");
+// Create Chat
+createBtn.onclick = async ()=>{
+  const roomId = randomString(8);
+  const password = randomString(6);
+  currentRoomId = roomId;
+  await setDoc(doc(db,"rooms",roomId),{password});
+  roomIdDisplay.textContent=`Room ID: ${roomId}`;
+  roomPassDisplay.textContent=`Password: ${password}`;
+  const link = `${window.location.origin}?room=${roomId}&pass=${password}`;
+  linkDisplay.innerHTML=`Share link: <a href="${link}" target="_blank" style="color:#0d6efd;">${link}</a>`;
+  enterChat();
+}
 
-    const msgRef = collection(db, "rooms", roomId, "messages");
+// Join Chat
+joinBtnMain.onclick = ()=> joinSection.style.display='block';
+joinRoomBtn.onclick = async ()=>{
+  const roomId=roomIdInput.value.trim();
+  const password=roomPassInput.value.trim();
+  if(!roomId || !password) return alert("Enter Room ID + Password");
+  const roomDoc = await getDoc(doc(db,"rooms",roomId));
+  if(!roomDoc.exists()) return alert("Room does not exist");
+  if(roomDoc.data().password!==password) return alert("Incorrect password");
+  currentRoomId=roomId;
+  roomIdDisplay.textContent=`Room ID: ${roomId}`;
+  roomPassDisplay.textContent=`Password: ${password}`;
+  linkDisplay.innerHTML=`Share link: <a href="${window.location.origin}?room=${roomId}&pass=${password}" target="_blank" style="color:#0d6efd;">${window.location.origin}?room=${roomId}&pass=${password}</a>`;
+  enterChat();
+}
 
-    // listen to messages live
-    onSnapshot(msgRef, (snapshot) => {
-        messagesDiv.innerHTML = "";
-        snapshot.forEach((doc) => {
-            const msg = doc.data();
-            const div = document.createElement("div");
-            div.classList.add("message");
+// Auto join via URL
+const params = new URLSearchParams(window.location.search);
+const urlRoom = params.get('room');
+const urlPass = params.get('pass');
+if(urlRoom && urlPass){
+  getDoc(doc(db,"rooms",urlRoom)).then(roomDoc=>{
+    if(roomDoc.exists() && roomDoc.data().password===urlPass){
+      currentRoomId=urlRoom;
+      roomIdDisplay.textContent=`Room ID: ${urlRoom}`;
+      roomPassDisplay.textContent=`Password: ${urlPass}`;
+      linkDisplay.innerHTML=`Share link: <a href="${window.location.origin}?room=${urlRoom}&pass=${urlPass}" target="_blank" style="color:#0d6efd;">${window.location.origin}?room=${urlRoom}&pass=${urlPass}</a>`;
+      enterChat();
+    }
+  });
+}
 
-            if (msg.sender === currentUser.uid) {
-                div.classList.add("mine");
-            } else {
-                div.classList.add("theirs");
-            }
+// Enter chat
+function enterChat(){ listenMessages(); }
 
-            div.innerText = msg.text;
-            messagesDiv.appendChild(div);
-        });
+// Send message
+sendBtn.onclick=async()=>{
+  const text=messageInput.value.trim();
+  if(!text||!currentRoomId)return;
+  await addDoc(collection(db,"rooms",currentRoomId,"messages"),{
+    text,
+    userId,
+    timestamp:new Date(),
+    nickname,
+    avatarUrl
+  });
+  messageInput.value='';
+}
 
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
+// Listen messages
+function listenMessages(){
+  const msgsCol = collection(db,"rooms",currentRoomId,"messages");
+  onSnapshot(msgsCol,snapshot=>{
+    messagesDiv.innerHTML='';
+    snapshot.docs
+      .sort((a,b)=>a.data().timestamp - b.data().timestamp)
+      .forEach(doc=>{
+        const msg = doc.data();
+        const div = document.createElement('div');
 
-    // send message
-    sendBtn.onclick = async () => {
-        const text = messageInput.value.trim();
-        if (text === "") return;
+        // Info
+        const infoDiv = document.createElement('div');
+        infoDiv.classList.add('msg-info');
+        if(msg.avatarUrl){
+          const img = document.createElement('img'); img.src=msg.avatarUrl;
+          infoDiv.appendChild(img);
+        }
+        const nameSpan = document.createElement('span'); nameSpan.textContent=msg.nickname||'Anonymous';
+        infoDiv.appendChild(nameSpan);
 
-        await addDoc(msgRef, {
-            sender: currentUser.uid,
-            text: text,
-            time: serverTimestamp()
-        });
+        // Message
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message'); msgDiv.classList.add(msg.userId===userId?'my-msg':'other-msg');
+        msgDiv.textContent=msg.text;
 
-        messageInput.value = "";
-    };
+        div.appendChild(infoDiv);
+        div.appendChild(msgDiv);
+        messagesDiv.appendChild(div);
+      });
+    messagesDiv.scrollTop=messagesDiv.scrollHeight;
+  });
 }
