@@ -60,21 +60,32 @@ googleLoginBtn.onclick = async () => {
   const provider = new GoogleAuthProvider();
   const result = await signInWithPopup(auth, provider);
   currentUser = result.user;
+
+  // Show main app after login
   loginOverlay.style.display = 'none';
+  document.querySelector('.app-grid').classList.remove('hidden');
+
   await loadProfile();
   loadUserChats();
 };
 
+
 onAuthStateChanged(auth, async (user) => {
   if(user){
     currentUser = user;
+
+    // Show main app when user is logged in
     loginOverlay.style.display = 'none';
+    document.querySelector('.app-grid').classList.remove('hidden');
+
     await loadProfile();
     loadUserChats();
   } else {
     loginOverlay.style.display = 'flex';
+    document.querySelector('.app-grid').classList.add('hidden'); // Hide app if not logged in
   }
 });
+
 
 // === Profile Modal ===
 profileBtn.onclick = () => profileModal.classList.remove('hidden');
@@ -221,3 +232,4 @@ function loadUserChats(){
 function renderLeftChats(){
   // Placeholder: implement chat list dynamically if needed
 }
+
