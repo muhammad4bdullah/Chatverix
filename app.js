@@ -2,21 +2,21 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebas
 import { getFirestore, doc, setDoc, addDoc, collection, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
-// Firebase config
+// === Firebase Config ===
 const firebaseConfig = {
-  apiKey: "AIzaSyAEWxTJ1loQkXM1ShwAAF1J15RQLlCgdGM",
-  authDomain: "msgapp-262c9.firebaseapp.com",
-  projectId: "msgapp-262c9",
-  storageBucket: "msgapp-262c9.appspot.com",
-  messagingSenderId: "122648836940",
-  appId: "1:122648836940:web:a098c052f65f3eb305ade9"
+  apiKey: "...",
+  authDomain: "...",
+  projectId: "...",
+  storageBucket: "...",
+  messagingSenderId: "...",
+  appId: "..."
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// DOM
+// === DOM Elements ===
 const loginOverlay = document.getElementById('login-overlay');
 const googleLoginBtn = document.getElementById('google-login-btn');
 const profileBtn = document.getElementById('profile-btn');
@@ -44,20 +44,20 @@ let chatsToday = 0;
 const MAX_CHATS_PER_DAY = 10;
 
 // === Helpers ===
-function randomString(len = 6){
-  const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let str=''; for(let i=0;i<len;i++) str+=chars.charAt(Math.floor(Math.random()*chars.length));
+function randomString(len=6){
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let str = '';
+  for(let i=0;i<len;i++) str += chars.charAt(Math.floor(Math.random()*chars.length));
   return str;
 }
 
-// 1️⃣ Function to update shareable link
 function updateRoomLink(roomId, password){
-    const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
-    const link = `${base}?room=${roomId}&pass=${password}`;
-    linkDisplay.innerHTML = `Share link: <a href="${link}" target="_blank" style="color:#0d6efd;">${link}</a>`;
+  const base = window.location.origin;
+  const link = `${base}?room=${roomId}&pass=${password}`;
+  linkDisplay.innerHTML = `Share link: <a href="${link}" target="_blank" style="color:#0d6efd;">${link}</a>`;
 }
 
-// 2️⃣ Google Login Button
+// === Google Login ===
 googleLoginBtn.onclick = async () => {
   const provider = new GoogleAuthProvider();
   const result = await signInWithPopup(auth, provider);
@@ -68,23 +68,18 @@ googleLoginBtn.onclick = async () => {
 
   await loadProfile();
   loadUserChats();
-
-  // Optional: auto-join URL after login
   joinRoomFromURL();
 };
 
-// 3️⃣ Auth State Changed
+// === Auth state ===
 onAuthStateChanged(auth, async (user) => {
   if(user){
     currentUser = user;
-
     loginOverlay.style.display = 'none';
     document.querySelector('.app-grid').classList.remove('hidden');
 
     await loadProfile();
     loadUserChats();
-
-    // ✅ Auto-join chat if URL has room/pass
     joinRoomFromURL();
   } else {
     loginOverlay.style.display = 'flex';
@@ -92,26 +87,24 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// 4️⃣ Function to auto-join room from URL
+// === Join room from URL ===
 function joinRoomFromURL() {
-    const params = new URLSearchParams(window.location.search);
-    const roomId = params.get('room');
-    const password = params.get('pass');
-    if (!roomId || !password) return;
+  const params = new URLSearchParams(window.location.search);
+  const roomId = params.get('room');
+  const password = params.get('pass');
+  if(!roomId || !password) return;
 
-    getDoc(doc(db,"rooms",roomId)).then(roomDoc => {
-        if(!roomDoc.exists()) return alert("Room does not exist");
-        if(roomDoc.data().password !== password) return alert("Incorrect password");
+  getDoc(doc(db,"rooms",roomId)).then(roomDoc => {
+    if(!roomDoc.exists()) return alert("Room does not exist");
+    if(roomDoc.data().password !== password) return alert("Incorrect password");
 
-        currentRoomId = roomId;
-        roomIdDisplay.textContent = `Room ID: ${roomId}`;
-        roomPassDisplay.textContent = `Password: ${password}`;
-        updateRoomLink(roomId, password);
-        listenMessages();
-    });
+    currentRoomId = roomId;
+    roomIdDisplay.textContent = `Room ID: ${roomId}`;
+    roomPassDisplay.textContent = `Password: ${password}`;
+    updateRoomLink(roomId,password);
+    listenMessages();
+  });
 }
-
-
 
 // === Profile Modal ===
 profileBtn.onclick = () => profileModal.classList.remove('hidden');
@@ -147,16 +140,14 @@ logoutBtn.onclick = async () => {
   profileModal.classList.add('hidden');
 };
 
-// Update topbar avatar
 function updateProfileUI(){
   document.getElementById('profile-avatar').src = avatarUrl || '';
 }
 
-// === Chat Creation & Joining ===
+// === Chat Create / Join ===
 document.getElementById('create-chat').onclick = async () => {
-  if(chatsToday >= MAX_CHATS_PER_DAY){
-    return alert("You reached maximum chats today!");
-  }
+  if(chatsToday >= MAX_CHATS_PER_DAY) return alert("Max chats today!");
+
   const roomId = randomString(8);
   const password = randomString(6);
   currentRoomId = roomId;
@@ -203,7 +194,7 @@ async function sendMessage(){
     userId: currentUser.uid,
     nickname,
     avatarUrl,
-    timestamp: new Date()
+    timestamp: Date.now()
   });
   messageInput.value='';
 }
@@ -218,11 +209,12 @@ function listenMessages(){
       .forEach(doc=>{
         const msg = doc.data();
         const div = document.createElement('div');
-        div.classList.add('message');
-        div.classList.add(msg.userId===currentUser.uid ? 'mine' : 'theirs');
+        div.classList.add('message', msg.userId===currentUser.uid?'mine':'theirs');
 
         const info = document.createElement('div'); info.classList.add('msg-info');
-        if(msg.avatarUrl){ const img = document.createElement('img'); img.src = msg.avatarUrl; info.appendChild(img); }
+        if(msg.avatarUrl){
+          const img = document.createElement('img'); img.src = msg.avatarUrl; info.appendChild(img);
+        }
         const span = document.createElement('span'); span.textContent = msg.nickname; info.appendChild(span);
         div.appendChild(info);
 
@@ -235,7 +227,7 @@ function listenMessages(){
   });
 }
 
-// === Profile Load ===
+// === Load Profile ===
 async function loadProfile(){
   const docSnap = await getDoc(doc(db,"users",currentUser.uid));
   if(docSnap.exists()){
@@ -250,13 +242,8 @@ async function loadProfile(){
   updateProfileUI();
 }
 
-// === Chats Left Placeholder ===
+// === Chats Left ===
 function loadUserChats(){
   chatsLeftDisplay.textContent = `${MAX_CHATS_PER_DAY - chatsToday} chats left today`;
 }
-
-function renderLeftChats(){
-  // Placeholder: implement chat list dynamically if needed
-}
-
-
+function renderLeftChats(){ leftChats.innerHTML=''; } // placeholder
