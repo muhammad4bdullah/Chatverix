@@ -221,7 +221,7 @@ html, body {
     padding: 2vh 3vw;
   }
 
-  /* Top buttons stack or shrink */
+  /* Top buttons */
   #top-buttons {
     gap: 2vw;
     padding: 1.5vh 2vw;
@@ -249,7 +249,7 @@ html, body {
     padding: 2vh 3vw;
   }
 
-  /* Messages become larger and phone-friendly */
+  /* Messages */
   .message {
     max-width: 85%;
     font-size: 3.5vw;
@@ -266,7 +266,7 @@ html, body {
     height: 6vw;
   }
 
-  /* Input section becomes similar to WhatsApp mobile */
+  /* Input section */
   #input-section {
     padding: 1vh 2vw;
     gap: 2vw;
@@ -287,8 +287,9 @@ html, body {
   /* Profile modal phone layout */
   #profile-modal div {
     width: 80vw;
+  }
 
-    /* Show hamburger button */
+  /* ✔ FIXED — Show hamburger button */
   #hamburger-btn {
     display: block;
     position: absolute;
@@ -299,13 +300,14 @@ html, body {
     border: none;
     color: white;
     cursor: pointer;
+    z-index: 300;
   }
 
-  /* Slide-in Menu (Hidden by default) */
+  /* Slide-in mobile menu */
   #mobile-menu {
     position: fixed;
     top: 0;
-    left: -70vw; /* Hidden off-screen */
+    left: -70vw;
     width: 70vw;
     height: 100vh;
     background: #14142b;
@@ -315,8 +317,11 @@ html, body {
     z-index: 200;
   }
 
+  #mobile-menu.open {
+    left: 0;
+  }
+
   #mobile-menu h3 {
-    color: white;
     font-size: 5vw;
     margin-bottom: 3vh;
   }
@@ -341,9 +346,5 @@ html, body {
     border-radius: 2vw;
     cursor: pointer;
   }
-
-  /* Slide-in active state */
-  #mobile-menu.open {
-    left: 0;
-  }
+}
 
