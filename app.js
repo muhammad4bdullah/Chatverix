@@ -101,6 +101,7 @@ if(urlRoom && urlPass){
   });
 }
 
+
 // Enter chat
 function enterChat(){ listenMessages(); }
 
@@ -151,3 +152,4 @@ function listenMessages(){
     messagesDiv.scrollTop=messagesDiv.scrollHeight;
   });
 }
+
