@@ -4,13 +4,14 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signO
 
 // --- Firebase Config ---
 const firebaseConfig = {
-  apiKey: "...",
-  authDomain: "...",
-  projectId: "...",
-  storageBucket: "...",
-  messagingSenderId: "...",
-  appId: "..."
+  apiKey: "AIzaSyAEWxTJ1loQkXM1ShwAAF1J15RQLlCgdGM",
+  authDomain: "msgapp-262c9.firebaseapp.com",
+  projectId: "msgapp-262c9",
+  storageBucket: "msgapp-262c9.appspot.com",
+  messagingSenderId: "122648836940",
+  appId: "1:122648836940:web:a098c052f65f3eb305ade9"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -33,7 +34,6 @@ const linkDisplay = document.getElementById('link-display');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send');
 const messagesDiv = document.getElementById('messages');
-const leftChats = document.getElementById('chats-list');
 
 let currentUser = null;
 let nickname = '';
@@ -43,190 +43,201 @@ let chatsToday = 0;
 const MAX_CHATS_PER_DAY = 10;
 
 // --- Helpers ---
-function randomString(len=6){
+function randomString(len = 6) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let str = '';
-  for(let i=0;i<len;i++) str += chars.charAt(Math.floor(Math.random()*chars.length));
+  for (let i = 0; i < len; i++) str += chars.charAt(Math.floor(Math.random() * chars.length));
   return str;
 }
 
-function updateRoomLink(roomId, password){
+function updateRoomLink(roomId: string, password: string) {
   const base = window.location.origin;
   const link = `${base}?room=${roomId}&pass=${password}`;
-  linkDisplay.innerHTML = `Share link: <a href="${link}" target="_blank" style="color:#0d6efd;">${link}</a>`;
+  if (linkDisplay) linkDisplay.innerHTML = `Share link: <a href="${link}" target="_blank" style="color:#0d6efd;">${link}</a>`;
 }
 
 // --- Google Login ---
-googleLoginBtn.onclick = async () => {
+googleLoginBtn!.onclick = async () => {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
     currentUser = result.user;
-    loginOverlay.style.display = 'none';
-    document.querySelector('.app-grid').classList.remove('hidden');
+    loginOverlay!.style.display = 'none';
+    document.querySelector('.app-grid')!.classList.remove('hidden');
     await loadProfile();
     loadUserChats();
     joinRoomFromURL();
-  } catch(e) {
-    alert("Login failed: " + e.message);
-    console.error(e);
+  } catch (e:any) {
+    console.error("Login failed:", e);
+    alert("Login failed: " + e.code);
   }
 };
 
 // --- Auth State ---
-onAuthStateChanged(auth, async (user)=>{
-  if(user){
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
     currentUser = user;
-    loginOverlay.style.display = 'none';
-    document.querySelector('.app-grid').classList.remove('hidden');
+    loginOverlay!.style.display = 'none';
+    document.querySelector('.app-grid')!.classList.remove('hidden');
     await loadProfile();
     loadUserChats();
     joinRoomFromURL();
   } else {
-    loginOverlay.style.display = 'flex';
-    document.querySelector('.app-grid').classList.add('hidden');
+    loginOverlay!.style.display = 'flex';
+    document.querySelector('.app-grid')!.classList.add('hidden');
   }
 });
 
 // --- Join Room From URL ---
-function joinRoomFromURL(){
+function joinRoomFromURL() {
   const params = new URLSearchParams(window.location.search);
   const roomId = params.get('room');
   const password = params.get('pass');
-  if(!roomId || !password) return;
+  if (!roomId || !password) return;
 
-  getDoc(doc(db,"rooms",roomId)).then(roomDoc=>{
-    if(!roomDoc.exists()) return alert("Room does not exist");
-    if(roomDoc.data().password !== password) return alert("Incorrect password");
+  getDoc(doc(db, "rooms", roomId)).then(roomDoc => {
+    if (!roomDoc.exists()) return alert("Room does not exist");
+    if (roomDoc.data().password !== password) return alert("Incorrect password");
 
     currentRoomId = roomId;
-    roomIdDisplay.textContent = `Room ID: ${roomId}`;
-    roomPassDisplay.textContent = `Password: ${password}`;
-    updateRoomLink(roomId,password);
+    roomIdDisplay!.textContent = `Room ID: ${roomId}`;
+    roomPassDisplay!.textContent = `Password: ${password}`;
+    updateRoomLink(roomId, password);
     listenMessages();
   });
 }
 
 // --- Profile Modal ---
-profileBtn.onclick = ()=>profileModal.classList.remove('hidden');
+profileBtn!.onclick = () => profileModal!.classList.remove('hidden');
 
-saveProfileBtn.onclick = async ()=>{
-  const name = nicknameInput.value.trim();
-  if(name) nickname = name;
+saveProfileBtn!.onclick = async () => {
+  const name = (nicknameInput as HTMLInputElement).value.trim();
+  if (name) nickname = name;
 
-  if(avatarInput.files[0]){
-    avatarUrl = await new Promise(resolve=>{
+  if ((avatarInput as HTMLInputElement).files![0]) {
+    avatarUrl = await new Promise<string>(resolve => {
       const reader = new FileReader();
-      reader.onload=()=>resolve(reader.result);
-      reader.readAsDataURL(avatarInput.files[0]);
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL((avatarInput as HTMLInputElement).files![0]);
     });
   }
 
-  await setDoc(doc(db,"users",currentUser.uid),{
+  await setDoc(doc(db, "users", currentUser!.uid), {
     nickname,
     avatarUrl,
     lastSet: Date.now()
-  },{merge:true});
+  }, { merge: true });
 
-  profileModal.classList.add('hidden');
+  profileModal!.classList.add('hidden');
   updateProfileUI();
 };
 
-logoutBtn.onclick = async ()=>{
+logoutBtn!.onclick = async () => {
   await signOut(auth);
-  currentUser=null; nickname=''; avatarUrl='';
-  loginOverlay.style.display='flex';
-  profileModal.classList.add('hidden');
+  currentUser = null; nickname = ''; avatarUrl = '';
+  loginOverlay!.style.display = 'flex';
+  profileModal!.classList.add('hidden');
 };
 
-function updateProfileUI(){
-  document.getElementById('profile-avatar').src = avatarUrl || '';
+function updateProfileUI() {
+  const avatar = document.getElementById('profile-avatar') as HTMLImageElement;
+  if (avatar) avatar.src = avatarUrl || '';
 }
 
 // --- Chat Create / Join ---
-document.getElementById('create-chat').onclick = async ()=>{
-  if(chatsToday>=MAX_CHATS_PER_DAY) return alert("Max chats today!");
+document.getElementById('create-chat')!.onclick = async () => {
+  if (chatsToday >= MAX_CHATS_PER_DAY) return alert("Max chats today!");
   const roomId = randomString(8);
   const password = randomString(6);
   currentRoomId = roomId; chatsToday++;
 
-  await setDoc(doc(db,"rooms",roomId),{
-    password, createdBy: currentUser.uid, members:[nickname]
+  await setDoc(doc(db, "rooms", roomId), {
+    password,
+    createdBy: currentUser!.uid,
+    members: [nickname]
   });
 
-  roomIdDisplay.textContent=`Room ID: ${roomId}`;
-  roomPassDisplay.textContent=`Password: ${password}`;
-  updateRoomLink(roomId,password);
+  roomIdDisplay!.textContent = `Room ID: ${roomId}`;
+  roomPassDisplay!.textContent = `Password: ${password}`;
+  updateRoomLink(roomId, password);
   listenMessages();
 };
 
-document.getElementById('join-room').onclick = async ()=>{
-  const roomId = document.getElementById('room-id').value.trim();
-  const password = document.getElementById('room-pass').value.trim();
-  if(!roomId||!password) return alert("Enter Room ID + Password");
+document.getElementById('join-room')!.onclick = async () => {
+  const roomId = (document.getElementById('room-id') as HTMLInputElement).value.trim();
+  const password = (document.getElementById('room-pass') as HTMLInputElement).value.trim();
+  if (!roomId || !password) return alert("Enter Room ID + Password");
 
-  const roomDoc = await getDoc(doc(db,"rooms",roomId));
-  if(!roomDoc.exists()) return alert("Room does not exist");
-  if(roomDoc.data().password!==password) return alert("Incorrect password");
+  const roomDoc = await getDoc(doc(db, "rooms", roomId));
+  if (!roomDoc.exists()) return alert("Room does not exist");
+  if (roomDoc.data().password !== password) return alert("Incorrect password");
 
   currentRoomId = roomId;
-  roomIdDisplay.textContent=`Room ID: ${roomId}`;
-  roomPassDisplay.textContent=`Password: ${password}`;
-  updateRoomLink(roomId,password);
+  roomIdDisplay!.textContent = `Room ID: ${roomId}`;
+  roomPassDisplay!.textContent = `Password: ${password}`;
+  updateRoomLink(roomId, password);
   listenMessages();
 };
 
 // --- Messaging ---
-sendBtn.onclick = sendMessage;
-messageInput.addEventListener("keydown", e=>{ if(e.key==='Enter') sendMessage(); });
+sendBtn!.onclick = sendMessage;
+messageInput!.addEventListener("keydown", e => { if (e.key === 'Enter') sendMessage(); });
 
-async function sendMessage(){
-  const text = messageInput.value.trim();
-  if(!text||!currentRoomId) return;
-  await addDoc(collection(db,"rooms",currentRoomId,"messages"),{
-    text, userId: currentUser.uid, nickname, avatarUrl, timestamp: Date.now()
+async function sendMessage() {
+  const text = (messageInput as HTMLInputElement).value.trim();
+  if (!text || !currentRoomId) return;
+
+  await addDoc(collection(db, "rooms", currentRoomId, "messages"), {
+    text,
+    userId: currentUser!.uid,
+    nickname,
+    avatarUrl,
+    timestamp: Date.now()
   });
-  messageInput.value='';
+
+  (messageInput as HTMLInputElement).value = '';
 }
 
-function listenMessages(){
-  if(!currentRoomId) return;
-  const msgsCol = collection(db,"rooms",currentRoomId,"messages");
-  onSnapshot(msgsCol, snapshot=>{
-    messagesDiv.innerHTML='';
-    snapshot.docs.sort((a,b)=>a.data().timestamp - b.data().timestamp)
-      .forEach(doc=>{
+function listenMessages() {
+  if (!currentRoomId) return;
+  const msgsCol = collection(db, "rooms", currentRoomId, "messages");
+  onSnapshot(msgsCol, snapshot => {
+    messagesDiv!.innerHTML = '';
+    snapshot.docs.sort((a, b) => a.data().timestamp - b.data().timestamp)
+      .forEach(doc => {
         const msg = doc.data();
-        const div=document.createElement('div');
-        div.classList.add('message', msg.userId===currentUser.uid?'mine':'theirs');
+        const div = document.createElement('div');
+        div.classList.add('message', msg.userId === currentUser!.uid ? 'mine' : 'theirs');
 
-        const info=document.createElement('div'); info.classList.add('msg-info');
-        if(msg.avatarUrl){ const img=document.createElement('img'); img.src=msg.avatarUrl; info.appendChild(img);}
-        const span=document.createElement('span'); span.textContent=msg.nickname; info.appendChild(span);
+        const info = document.createElement('div'); info.classList.add('msg-info');
+        if (msg.avatarUrl) { const img = document.createElement('img'); img.src = msg.avatarUrl; info.appendChild(img); }
+        const span = document.createElement('span'); span.textContent = msg.nickname; info.appendChild(span);
         div.appendChild(info);
 
-        const textDiv=document.createElement('div'); textDiv.classList.add('msg-text'); textDiv.textContent=msg.text;
+        const textDiv = document.createElement('div'); textDiv.classList.add('msg-text'); textDiv.textContent = msg.text;
         div.appendChild(textDiv);
-        messagesDiv.appendChild(div);
+        messagesDiv!.appendChild(div);
       });
-    messagesDiv.scrollTo({top: messagesDiv.scrollHeight, behavior:'smooth'});
+    messagesDiv!.scrollTo({ top: messagesDiv!.scrollHeight, behavior: 'smooth' });
   });
 }
 
-// --- Profile Load ---
-async function loadProfile(){
-  const docSnap = await getDoc(doc(db,"users",currentUser.uid));
-  if(docSnap.exists()){
-    const data=docSnap.data();
-    nickname=data.nickname||currentUser.displayName;
-    avatarUrl=data.avatarUrl||currentUser.photoURL;
+// --- Load Profile ---
+async function loadProfile() {
+  const docSnap = await getDoc(doc(db, "users", currentUser!.uid));
+  if (docSnap.exists()) {
+    const data = docSnap.data();
+    nickname = data.nickname || currentUser!.displayName!;
+    avatarUrl = data.avatarUrl || currentUser!.photoURL!;
   } else {
-    nickname=currentUser.displayName;
-    avatarUrl=currentUser.photoURL;
+    nickname = currentUser!.displayName!;
+    avatarUrl = currentUser!.photoURL!;
   }
-  nicknameInput.value=nickname;
+  (nicknameInput as HTMLInputElement).value = nickname;
   updateProfileUI();
 }
 
 // --- Chats Left ---
-function loadUserChats(){ chatsLeftDisplay.textContent=`${MAX_CHATS_PER_DAY-chatsToday} chats left today`; }
+function loadUserChats() {
+  if (chatsLeftDisplay) chatsLeftDisplay.textContent = `${MAX_CHATS_PER_DAY - chatsToday} chats left today`;
+}
