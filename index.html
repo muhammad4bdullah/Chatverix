@@ -8,80 +8,60 @@
 </head>
 <body>
 
-<!-- Login overlay -->
-<div id="login-overlay" class="overlay">
-  <div class="overlay-card">
-    <h3>Welcome! Login is required</h3>
-    <button id="google-login" class="btn primary">Login with Google</button>
+<!-- Google Login Overlay -->
+<div id="login-overlay">
+  <div class="login-card">
+    <h2>Login to Chat</h2>
+    <button id="google-login-btn">Login with Google</button>
   </div>
 </div>
 
-<!-- App grid -->
-<div class="app-grid hidden" id="app-grid">
+<!-- Main App Grid -->
+<div class="app-grid hidden">
 
-  <!-- Left column -->
+  <!-- Left Column: Rooms & Chats -->
   <div class="left-col">
     <div class="left-header">
       <div class="brand">
-        <div class="logo">LC</div>
+        <div class="logo">💬</div>
         <div class="brand-text">
           <div class="title">Link Chat</div>
-          <div class="subtitle">Chats & Rooms</div>
+          <div class="subtitle">Your Rooms</div>
         </div>
       </div>
-      <div class="profile-btn" id="profile-btn">
-        <img src="" alt="pfp" class="avatar" id="profile-avatar">
-      </div>
     </div>
 
-    <!-- Buttons (Create/Join) -->
-    <div class="left-buttons" id="left-buttons">
-      <button class="btn primary" id="create-chat">Create Chat</button>
-      <button class="btn primary" id="join-chat">Join Chat</button>
+    <div class="chats-list" id="chats-list">
+      <!-- Chats will be appended here -->
     </div>
 
-    <!-- Room info -->
-    <div id="room-info" class="room-info hidden">
-      <h3>Room Info</h3>
-      <p id="room-id-display">Room ID: -</p>
-      <p id="room-pass-display">Password: -</p>
-      <p id="link-display"></p>
-    </div>
-
-    <!-- Chat list -->
-    <div id="chats-list" class="chats-list">
-      <!-- Dynamic chat items -->
-    </div>
-
-    <!-- Daily chat limit -->
     <div class="left-footer">
-      <div>Chats left today: <span id="chats-left">10</span></div>
-    </div>
-
-    <!-- Join section -->
-    <div id="join-section" class="hidden">
-      <input type="text" id="room-id" placeholder="Enter Room ID">
-      <input type="text" id="room-pass" placeholder="Enter Room Password">
-      <button class="btn primary" id="join-room">Join Room</button>
+      <p id="chats-left"></p>
     </div>
   </div>
 
-  <!-- Main column -->
+  <!-- Right Column: Chat Area -->
   <div class="main-col">
     <div class="topbar">
       <div class="top-left">
-        <div class="room-title" id="room-title">Select a chat</div>
+        <span class="room-title" id="room-title">Select a Chat</span>
+      </div>
+      <div class="top-right">
+        <div class="profile-btn" id="profile-btn">
+          <img src="" class="avatar" id="profile-avatar">
+        </div>
       </div>
     </div>
 
-    <!-- Chat area -->
     <div class="chat-area">
       <div class="messages-wrap">
-        <div id="messages" class="messages"></div>
+        <div class="messages" id="messages">
+          <!-- Messages will appear here -->
+        </div>
       </div>
       <div class="composer">
-        <input type="text" id="message-input" placeholder="Type a message...">
-        <button class="btn primary" id="send">Send</button>
+        <input type="text" id="message-input" placeholder="Type a message">
+        <button id="send">Send</button>
       </div>
     </div>
   </div>
@@ -90,14 +70,13 @@
 <!-- Profile Modal -->
 <div class="modal hidden" id="profile-modal">
   <div class="modal-card">
-    <h3>Profile Settings</h3>
-    <input type="text" id="nickname-input" placeholder="Nickname">
+    <h3>Profile</h3>
+    <input type="text" id="nickname-input" placeholder="Set nickname">
     <input type="file" id="avatar-input" accept="image/*">
     <div class="profile-actions">
-      <button class="btn primary" id="save-profile">Save</button>
-      <button class="btn danger" id="logout-btn">Logout</button>
+      <button id="save-profile">Save</button>
+      <button id="logout-btn">Log Out</button>
     </div>
-    <p class="hint">Nickname can only be changed once every 15 days.</p>
   </div>
 </div>
 
