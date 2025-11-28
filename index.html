@@ -3,55 +3,104 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="styles.css">
-<title>Link Chat</title>
-
+<title>Link Chat App</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- Top buttons -->
-<div id="top-buttons">
-  <button id="create-chat">Create Chat</button>
-  <button id="join-chat">Join Chat</button>
-  <button id="profile-btn" style="position:absolute; right:20px; top:10px;">Profile</button>
+<!-- Login overlay -->
+<div id="login-overlay" class="overlay">
+  <div class="overlay-card">
+    <h3>Welcome! Login is required</h3>
+    <button id="google-login" class="btn primary">Login with Google</button>
+  </div>
+</div>
+
+<!-- App grid -->
+<div class="app-grid hidden" id="app-grid">
+
+  <!-- Left column -->
+  <div class="left-col">
+    <div class="left-header">
+      <div class="brand">
+        <div class="logo">LC</div>
+        <div class="brand-text">
+          <div class="title">Link Chat</div>
+          <div class="subtitle">Chats & Rooms</div>
+        </div>
+      </div>
+      <div class="profile-btn" id="profile-btn">
+        <img src="" alt="pfp" class="avatar" id="profile-avatar">
+      </div>
+    </div>
+
+    <!-- Buttons (Create/Join) -->
+    <div class="left-buttons" id="left-buttons">
+      <button class="btn primary" id="create-chat">Create Chat</button>
+      <button class="btn primary" id="join-chat">Join Chat</button>
+    </div>
+
+    <!-- Room info -->
+    <div id="room-info" class="room-info hidden">
+      <h3>Room Info</h3>
+      <p id="room-id-display">Room ID: -</p>
+      <p id="room-pass-display">Password: -</p>
+      <p id="link-display"></p>
+    </div>
+
+    <!-- Chat list -->
+    <div id="chats-list" class="chats-list">
+      <!-- Dynamic chat items -->
+    </div>
+
+    <!-- Daily chat limit -->
+    <div class="left-footer">
+      <div>Chats left today: <span id="chats-left">10</span></div>
+    </div>
+
+    <!-- Join section -->
+    <div id="join-section" class="hidden">
+      <input type="text" id="room-id" placeholder="Enter Room ID">
+      <input type="text" id="room-pass" placeholder="Enter Room Password">
+      <button class="btn primary" id="join-room">Join Room</button>
+    </div>
+  </div>
+
+  <!-- Main column -->
+  <div class="main-col">
+    <div class="topbar">
+      <div class="top-left">
+        <div class="room-title" id="room-title">Select a chat</div>
+      </div>
+    </div>
+
+    <!-- Chat area -->
+    <div class="chat-area">
+      <div class="messages-wrap">
+        <div id="messages" class="messages"></div>
+      </div>
+      <div class="composer">
+        <input type="text" id="message-input" placeholder="Type a message...">
+        <button class="btn primary" id="send">Send</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Profile Modal -->
-<div id="profile-modal">
-  <div>
-    <h3>Set Profile</h3>
-    <input type="text" id="nickname-input" placeholder="Enter nickname">
+<div class="modal hidden" id="profile-modal">
+  <div class="modal-card">
+    <h3>Profile Settings</h3>
+    <input type="text" id="nickname-input" placeholder="Nickname">
     <input type="file" id="avatar-input" accept="image/*">
-    <button id="save-profile">Save</button>
-  </div>
-</div>
-
-<div id="container">
-  <!-- Left Panel -->
-  <div id="room-panel">
-    <h3>Room Info</h3>
-    <p id="room-id-display">Room ID: -</p>
-    <p id="room-pass-display">Password: -</p>
-    <p id="link-display"></p>
-
-    <div id="join-section">
-      <input type="text" id="room-id" placeholder="Enter Room ID">
-      <input type="text" id="room-pass" placeholder="Enter Room Password">
-      <button id="join-room">Join</button>
+    <div class="profile-actions">
+      <button class="btn primary" id="save-profile">Save</button>
+      <button class="btn danger" id="logout-btn">Logout</button>
     </div>
-  </div>
-
-  <!-- Right Panel: Chat -->
-  <div id="chat-panel">
-    <div id="messages"></div>
-    <div id="input-section">
-      <input type="text" id="message-input" placeholder="Type a message">
-      <button id="send">Send</button>
-    </div>
+    <p class="hint">Nickname can only be changed once every 15 days.</p>
   </div>
 </div>
 
 <script type="module" src="app.js"></script>
 </body>
 </html>
-
