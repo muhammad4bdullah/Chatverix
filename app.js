@@ -35,69 +35,85 @@ const avatarInput = document.getElementById('avatar-input');
 const saveProfileBtn = document.getElementById('save-profile');
 
 let currentRoomId = '';
-let userId = `user-${Math.floor(Math.random()*10000)}`;
+let userId = `user-${Math.floor(Math.random() * 10000)}`;
 let nickname = "Anonymous";
 let avatarUrl = "";
 
-// Helper
-function randomString(len=6){ const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; let str=''; for(let i=0;i<len;i++) str+=chars.charAt(Math.floor(Math.random()*chars.length)); return str; }
-
-// Profile
-profileBtn.onclick = () => profileModal.style.display='flex';
-saveProfileBtn.onclick = ()=>{
-  const name = nicknameInput.value.trim();
-  if(name) nickname=name;
-  const file = avatarInput.files[0];
-  if(file){
-    const reader = new FileReader();
-    reader.onload = ()=>{ avatarUrl = reader.result; }
-    reader.readAsDataURL(file);
-  }
-  profileModal.style.display='none';
+// Helper functions
+function randomString(len = 6) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let str = '';
+  for (let i = 0; i < len; i++) str += chars.charAt(Math.floor(Math.random() * chars.length));
+  return str;
 }
 
+function updateRoomLink(roomId, password) {
+  const link = `${window.location.origin}/msgapp/?room=${roomId}&pass=${password}`;
+  linkDisplay.innerHTML = `Share link: <a href="${link}" target="_blank" style="color:#0d6efd;">${link}</a>`;
+}
+
+// Profile
+profileBtn.onclick = () => profileModal.style.display = 'flex';
+saveProfileBtn.onclick = () => {
+  const name = nicknameInput.value.trim();
+  if (name) nickname = name;
+
+  const file = avatarInput.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = () => { avatarUrl = reader.result; };
+    reader.readAsDataURL(file);
+  }
+
+  profileModal.style.display = 'none';
+};
+
 // Create Chat
-createBtn.onclick = async ()=>{
+createBtn.onclick = async () => {
   const roomId = randomString(8);
   const password = randomString(6);
   currentRoomId = roomId;
-  await setDoc(doc(db,"rooms",roomId),{password});
-  roomIdDisplay.textContent=`Room ID: ${roomId}`;
-  roomPassDisplay.textContent=`Password: ${password}`;
-const link = `${window.location.origin}/msgapp/?room=${roomId}&pass=${password}`;
-linkDisplay.innerHTML = `Share link: <a href="${link}" target="_blank" style="color:#0d6efd;">${link}</a>`;
+
+  await setDoc(doc(db, "rooms", roomId), { password });
+
+  roomIdDisplay.textContent = `Room ID: ${roomId}`;
+  roomPassDisplay.textContent = `Password: ${password}`;
+  updateRoomLink(roomId, password);
 
   enterChat();
-}
+};
 
 // Join Chat
-joinBtnMain.onclick = ()=> joinSection.style.display='block';
-joinRoomBtn.onclick = async ()=>{
-  const roomId=roomIdInput.value.trim();
-  const password=roomPassInput.value.trim();
-  if(!roomId || !password) return alert("Enter Room ID + Password");
-  const roomDoc = await getDoc(doc(db,"rooms",roomId));
-  if(!roomDoc.exists()) return alert("Room does not exist");
-  if(roomDoc.data().password!==password) return alert("Incorrect password");
-  currentRoomId=roomId;
-  roomIdDisplay.textContent=`Room ID: ${roomId}`;
-  roomPassDisplay.textContent=`Password: ${password}`;
-linkDisplay.innerHTML = `Share link: <a href="${window.location.origin}/msgapp/?room=${roomId}&pass=${password}" target="_blank" style="color:#0d6efd;">${window.location.origin}/msgapp/?room=${roomId}&pass=${password}</a>`;
+joinBtnMain.onclick = () => joinSection.style.display = 'block';
+joinRoomBtn.onclick = async () => {
+  const roomId = roomIdInput.value.trim();
+  const password = roomPassInput.value.trim();
+  if (!roomId || !password) return alert("Enter Room ID + Password");
+
+  const roomDoc = await getDoc(doc(db, "rooms", roomId));
+  if (!roomDoc.exists()) return alert("Room does not exist");
+  if (roomDoc.data().password !== password) return alert("Incorrect password");
+
+  currentRoomId = roomId;
+  roomIdDisplay.textContent = `Room ID: ${roomId}`;
+  roomPassDisplay.textContent = `Password: ${password}`;
+  updateRoomLink(roomId, password);
 
   enterChat();
-}
+};
 
 // Auto join via URL
 const params = new URLSearchParams(window.location.search);
 const urlRoom = params.get('room');
 const urlPass = params.get('pass');
-if(urlRoom && urlPass){
-  getDoc(doc(db,"rooms",urlRoom)).then(roomDoc=>{
-    if(roomDoc.exists() && roomDoc.data().password===urlPass){
-      currentRoomId=urlRoom;
-      roomIdDisplay.textContent=`Room ID: ${urlRoom}`;
-      roomPassDisplay.textContent=`Password: ${urlPass}`;
-     linkDisplay.innerHTML = `Share link: <a href="${window.location.origin}/msgapp/?room=${urlRoom}&pass=${urlPass}" target="_blank" style="color:#0d6efd;">${window.location.origin}/msgapp/?room=${urlRoom}&pass=${urlPass}</a>`;
+
+if (urlRoom && urlPass) {
+  getDoc(doc(db, "rooms", urlRoom)).then(roomDoc => {
+    if (roomDoc.exists() && roomDoc.data().password === urlPass) {
+      currentRoomId = urlRoom;
+      roomIdDisplay.textContent = `Room ID: ${urlRoom}`;
+      roomPassDisplay.textContent = `Password: ${urlPass}`;
+      updateRoomLink(urlRoom, urlPass);
 
       enterChat();
     }
@@ -105,53 +121,57 @@ if(urlRoom && urlPass){
 }
 
 // Enter chat
-function enterChat(){ listenMessages(); }
+function enterChat() { listenMessages(); }
 
 // Send message
-sendBtn.onclick=async()=>{
-  const text=messageInput.value.trim();
-  if(!text||!currentRoomId)return;
-  await addDoc(collection(db,"rooms",currentRoomId,"messages"),{
+sendBtn.onclick = async () => {
+  const text = messageInput.value.trim();
+  if (!text || !currentRoomId) return;
+
+  await addDoc(collection(db, "rooms", currentRoomId, "messages"), {
     text,
     userId,
-    timestamp:new Date(),
+    timestamp: new Date(),
     nickname,
     avatarUrl
   });
-  messageInput.value='';
-}
+
+  messageInput.value = '';
+};
 
 // Listen messages
-function listenMessages(){
-  const msgsCol = collection(db,"rooms",currentRoomId,"messages");
-  onSnapshot(msgsCol,snapshot=>{
-    messagesDiv.innerHTML='';
+function listenMessages() {
+  const msgsCol = collection(db, "rooms", currentRoomId, "messages");
+  onSnapshot(msgsCol, snapshot => {
+    messagesDiv.innerHTML = '';
     snapshot.docs
-      .sort((a,b)=>a.data().timestamp - b.data().timestamp)
-      .forEach(doc=>{
+      .sort((a, b) => a.data().timestamp - b.data().timestamp)
+      .forEach(doc => {
         const msg = doc.data();
         const div = document.createElement('div');
 
         // Info
         const infoDiv = document.createElement('div');
         infoDiv.classList.add('msg-info');
-        if(msg.avatarUrl){
-          const img = document.createElement('img'); img.src=msg.avatarUrl;
+        if (msg.avatarUrl) {
+          const img = document.createElement('img');
+          img.src = msg.avatarUrl;
           infoDiv.appendChild(img);
         }
-        const nameSpan = document.createElement('span'); nameSpan.textContent=msg.nickname||'Anonymous';
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = msg.nickname || 'Anonymous';
         infoDiv.appendChild(nameSpan);
 
         // Message
         const msgDiv = document.createElement('div');
-        msgDiv.classList.add('message'); msgDiv.classList.add(msg.userId===userId?'my-msg':'other-msg');
-        msgDiv.textContent=msg.text;
+        msgDiv.classList.add('message');
+        msgDiv.classList.add(msg.userId === userId ? 'my-msg' : 'other-msg');
+        msgDiv.textContent = msg.text;
 
         div.appendChild(infoDiv);
         div.appendChild(msgDiv);
         messagesDiv.appendChild(div);
       });
-    messagesDiv.scrollTop=messagesDiv.scrollHeight;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
 }
-
