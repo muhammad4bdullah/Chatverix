@@ -64,9 +64,7 @@ createBtn.onclick = async ()=>{
   await setDoc(doc(db,"rooms",roomId),{password});
   roomIdDisplay.textContent=`Room ID: ${roomId}`;
   roomPassDisplay.textContent=`Password: ${password}`;
-const link = `${window.location.origin}/msgapp/?room=${roomId}&pass=${password}`;
-
-  
+  const link = `${window.location.origin}/msgapp/?room=${roomId}&pass=${password}`;
   linkDisplay.innerHTML=`Share link: <a href="${link}" target="_blank" style="color:#0d6efd;">${link}</a>`;
   enterChat();
 }
@@ -83,52 +81,28 @@ joinRoomBtn.onclick = async ()=>{
   currentRoomId=roomId;
   roomIdDisplay.textContent=`Room ID: ${roomId}`;
   roomPassDisplay.textContent=`Password: ${password}`;
- linkDisplay.innerHTML = `Share link: <a href="${window.location.origin}/msgapp/?room=${roomId}&pass=${password}" target="_blank" style="color:#0d6efd;">${window.location.origin}/msgapp/?room=${roomId}&pass=${password}</a>`;
-
+  linkDisplay.innerHTML=`Share link: <a href="${window.location.origin}/msgapp/?room=${roomId}&pass=${password}" target="_blank" style="color:#0d6efd;">${window.location.origin}/msgapp/?room=${roomId}&pass=${password}</a>`;
+  enterChat();
 }
 
-// AUTO JOIN (SAFE + FIXED VERSION)
-window.addEventListener("load", async () => {
+// AUTO JOIN
+window.addEventListener("load", async ()=>{
   const params = new URLSearchParams(window.location.search);
   const urlRoom = params.get("room");
   const urlPass = params.get("pass");
-
-  // No link provided
-  if (!urlRoom || !urlPass) return;
-
-  try {
-    const roomRef = doc(db, "rooms", urlRoom);
+  if(!urlRoom || !urlPass) return;
+  try{
+    const roomRef = doc(db,"rooms",urlRoom);
     const roomDoc = await getDoc(roomRef);
-
-    // Room not found
-    if (!roomDoc.exists()) {
-      alert("Room does not exist anymore.");
-      return;
-    }
-
-    // Wrong password
-    if (roomDoc.data().password !== urlPass) {
-      alert("Incorrect password from link.");
-      return;
-    }
-
-    // JOIN SUCCESS
-    currentRoomId = urlRoom;
-
-    roomIdDisplay.textContent = `Room ID: ${urlRoom}`;
-    roomPassDisplay.textContent = `Password: ${urlPass}`;
-    linkDisplay.innerHTML =
-  `Share link: <a href="${window.location.origin}/msgapp/?room=${urlRoom}&pass=${urlPass}" target="_blank" style="color:#0d6efd;">${window.location.origin}/msgapp/?room=${urlRoom}&pass=${urlPass}</a>`;
-
-
+    if(!roomDoc.exists()) { alert("Room does not exist."); return; }
+    if(roomDoc.data().password!==urlPass) { alert("Incorrect password."); return; }
+    currentRoomId=urlRoom;
+    roomIdDisplay.textContent=`Room ID: ${urlRoom}`;
+    roomPassDisplay.textContent=`Password: ${urlPass}`;
+    linkDisplay.innerHTML=`Share link: <a href="${window.location.origin}/msgapp/?room=${urlRoom}&pass=${urlPass}" target="_blank" style="color:#0d6efd;">${window.location.origin}/msgapp/?room=${urlRoom}&pass=${urlPass}</a>`;
     enterChat();
-
-  } catch (err) {
-    console.error("Auto join failed:", err);
-  }
+  } catch(err){ console.error("Auto join failed:", err); }
 });
-
-
 
 // Enter chat
 function enterChat(){ listenMessages(); }
@@ -136,7 +110,7 @@ function enterChat(){ listenMessages(); }
 // Send message
 sendBtn.onclick=async()=>{
   const text=messageInput.value.trim();
-  if(!text||!currentRoomId)return;
+  if(!text||!currentRoomId) return;
   await addDoc(collection(db,"rooms",currentRoomId,"messages"),{
     text,
     userId,
@@ -149,59 +123,35 @@ sendBtn.onclick=async()=>{
 
 // Listen messages
 function listenMessages(){
-  const msgsCol = collection(db,"rooms",currentRoomId,"messages");
+  const msgsCol=collection(db,"rooms",currentRoomId,"messages");
   onSnapshot(msgsCol,snapshot=>{
     messagesDiv.innerHTML='';
-    snapshot.docs
-      .sort((a,b)=>a.data().timestamp - b.data().timestamp)
-      .forEach(doc=>{
-        const msg = doc.data();
-        const div = document.createElement('div');
-
-        // Info
-        const infoDiv = document.createElement('div');
-        infoDiv.classList.add('msg-info');
-        if(msg.avatarUrl){
-          const img = document.createElement('img'); img.src=msg.avatarUrl;
-          infoDiv.appendChild(img);
-        }
-        const nameSpan = document.createElement('span'); nameSpan.textContent=msg.nickname||'Anonymous';
-        infoDiv.appendChild(nameSpan);
-
-        // Message
-        const msgDiv = document.createElement('div');
-        msgDiv.classList.add('message'); msgDiv.classList.add(msg.userId===userId?'my-msg':'other-msg');
-        msgDiv.textContent=msg.text;
-
-        div.appendChild(infoDiv);
-        div.appendChild(msgDiv);
-        messagesDiv.appendChild(div);
-      });
+    snapshot.docs.sort((a,b)=>a.data().timestamp-b.data().timestamp).forEach(doc=>{
+      const msg=doc.data();
+      const div=document.createElement('div');
+      const infoDiv=document.createElement('div');
+      infoDiv.classList.add('msg-info');
+      if(msg.avatarUrl){ const img=document.createElement('img'); img.src=msg.avatarUrl; infoDiv.appendChild(img); }
+      const nameSpan=document.createElement('span'); nameSpan.textContent=msg.nickname||'Anonymous'; infoDiv.appendChild(nameSpan);
+      const msgDiv=document.createElement('div'); msgDiv.classList.add('message'); msgDiv.classList.add(msg.userId===userId?'my-msg':'other-msg'); msgDiv.textContent=msg.text;
+      div.appendChild(infoDiv); div.appendChild(msgDiv); messagesDiv.appendChild(div);
+    });
     messagesDiv.scrollTop=messagesDiv.scrollHeight;
   });
 }
 
+// Hamburger menu
 const hamburger = document.getElementById("hamburger-btn");
 const mobileMenu = document.getElementById("mobile-menu");
+hamburger.addEventListener("click", ()=>{ mobileMenu.classList.toggle("open"); });
 
-hamburger.addEventListener("click", () => {
-    mobileMenu.classList.toggle("open");
-});
-
-// Connect mobile join/create to your main code
-document.getElementById("mobile-join").onclick = () => {
-    document.getElementById("room-id").value =
-        document.getElementById("mobile-room-id").value;
-
-    document.getElementById("room-pass").value =
-        document.getElementById("mobile-room-pass").value;
-
-    document.getElementById("join-room").click();
+// Mobile join/create
+document.getElementById("mobile-join").onclick = ()=>{
+  roomIdInput.value = document.getElementById("mobile-room-id").value;
+  roomPassInput.value = document.getElementById("mobile-room-pass").value;
+  joinRoomBtn.click();
 };
-
-document.getElementById("mobile-create").onclick = () => {
-    mobileMenu.classList.remove("open");
-    document.getElementById("create-chat").click();
+document.getElementById("mobile-create").onclick = ()=>{
+  mobileMenu.classList.remove("open");
+  createBtn.click();
 };
-
-
