@@ -51,9 +51,12 @@ function randomString(len = 6){
 }
 
 function updateRoomLink(roomId, password){
-  const link = `${window.location.origin}/?room=${roomId}&pass=${password}`;
-  linkDisplay.innerHTML = `Share link: <a href="${link}" target="_blank" style="color:#0ff;">${link}</a>`;
+    // Get base path including directory
+    const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
+    const link = `${base}?room=${roomId}&pass=${password}`;
+    linkDisplay.innerHTML = `Share link: <a href="${link}" target="_blank" style="color:#0d6efd;">${link}</a>`;
 }
+
 
 // === Google Login ===
 googleLoginBtn.onclick = async () => {
@@ -232,4 +235,5 @@ function loadUserChats(){
 function renderLeftChats(){
   // Placeholder: implement chat list dynamically if needed
 }
+
 
