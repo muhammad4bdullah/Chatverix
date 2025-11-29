@@ -1,35 +1,209 @@
-body {
+/* ====================== BASE ====================== */
+* {
+  box-sizing: border-box;
   margin: 0;
+  padding: 0;
+}
+
+body {
   font-family: 'Segoe UI', sans-serif;
   background-color: #0f1117;
   color: #eee;
+  overflow-x: hidden;
 }
 
-/* Hamburger menu */
+/* ====================== HAMBURGER MENU ====================== */
 #hamburgerMenu {
   position: fixed;
-  left: -300px;
   top: 0;
-  width: 300px;
+  left: -320px;
+  width: 320px;
   height: 100%;
   background-color: #1b1f28;
   transition: left 0.3s ease;
   padding: 20px;
-  box-shadow: 2px 0 10px rgba(0,0,0,0.5);
-  z-index: 10;
+  z-index: 100;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.6);
 }
-#hamburgerMenu.menu-open { left: 0; }
-.menu-header { display: flex; justify-content: space-between; align-items: center; }
-.hamburger-btn { position: fixed; left: 10px; top: 10px; font-size: 28px; background: none; border: none; color: #0ff; cursor: pointer; z-index: 11; }
 
-/* Sections */
-.hidden { display: none; }
-input, button { padding: 10px; border-radius: 5px; border: none; }
-button { cursor: pointer; }
-#profileSetup, #loginSection { max-width: 400px; margin: 50px auto; display: flex; flex-direction: column; gap: 10px; }
-#chatWindow { height: 400px; overflow-y: auto; padding: 10px; background-color: #11141d; margin: 10px 0; border-radius: 5px; }
-.message { margin: 5px 0; padding: 5px 10px; border-radius: 10px; max-width: 70%; }
-.message.admin { background-color: #0ff; color: #111; }
-.message.user { background-color: #333746; color: #eee; }
-.room-header { display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: #161b25; border-bottom: 1px solid #0ff; }
-#messageInput { width: calc(100% - 100px); }
+#hamburgerMenu.menu-open {
+  left: 0;
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.menu-header h2 {
+  font-size: 20px;
+  color: #0ff;
+}
+
+#roomList {
+  list-style: none;
+}
+
+#roomList li {
+  padding: 10px;
+  margin-bottom: 8px;
+  background-color: #11141d;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#roomList li:hover {
+  background-color: #0ff2;
+}
+
+/* Hamburger button */
+.hamburger-btn {
+  position: fixed;
+  left: 15px;
+  top: 15px;
+  font-size: 28px;
+  background: none;
+  border: none;
+  color: #0ff;
+  cursor: pointer;
+  z-index: 110;
+  transition: transform 0.2s;
+}
+
+.hamburger-btn:hover {
+  transform: scale(1.1);
+}
+
+/* ====================== SECTIONS ====================== */
+.hidden {
+  display: none;
+}
+
+input, button {
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+}
+
+button {
+  cursor: pointer;
+  background-color: #0ff;
+  color: #111;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background-color: #0cc;
+}
+
+#loginSection,
+#profileSetup {
+  max-width: 400px;
+  margin: 80px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  text-align: center;
+}
+
+#chatSection {
+  max-width: 800px;
+  margin: 20px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ====================== CHAT HEADER ====================== */
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: #161b25;
+  border-radius: 10px;
+  border: 1px solid #0ff5;
+}
+
+.room-header button {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+/* ====================== CHAT WINDOW ====================== */
+#chatWindow {
+  height: 400px;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: #11141d;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #0ff3;
+}
+
+/* Messages */
+.message {
+  padding: 8px 12px;
+  border-radius: 15px;
+  max-width: 65%;
+  word-wrap: break-word;
+  display: inline-block;
+}
+
+.message.user {
+  background-color: #333746;
+  color: #eee;
+  align-self: flex-start;
+}
+
+.message.admin {
+  background-color: #0ff;
+  color: #111;
+  font-weight: bold;
+  align-self: flex-end;
+}
+
+/* ====================== INPUT BAR ====================== */
+#messageInput {
+  width: calc(100% - 110px);
+  border-radius: 8px;
+  padding: 10px;
+  border: 1px solid #0ff4;
+  background-color: #161b25;
+  color: #eee;
+}
+
+#sendMessage {
+  width: 90px;
+  margin-left: 10px;
+}
+
+/* ====================== PROFILE SETUP ====================== */
+#profileSetup input[type="file"] {
+  padding: 5px;
+  border-radius: 6px;
+  border: 1px solid #0ff4;
+  background-color: #161b25;
+  color: #eee;
+}
+
+/* ====================== RESPONSIVE ====================== */
+@media screen and (max-width: 768px) {
+  #chatSection {
+    margin: 20px 10px;
+  }
+  #chatWindow {
+    height: 300px;
+  }
+  .room-header {
+    flex-direction: column;
+    gap: 5px;
+  }
+}
