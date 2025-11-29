@@ -209,13 +209,16 @@ async function sendMessage() {
   if (!currentRoomId) return alert('Join or create a room first');
   const txt = messageInput.value.trim();
   if (!txt) return;
-  await addDoc(collection(db, 'rooms', currentRoomId, 'messages'), {
-    text: txt,
-    nickname: currentUserDoc?.nickname || currentUser.displayName || '',
-    username: currentUserDoc?.username || null,
-    avatarUrl: currentUserDoc?.avatarUrl || currentUser.photoURL || '',
-    userId: currentUser.uid,
-    timestamp: Date.now()
+await addDoc(collection(db, 'rooms', currentRoomId, 'messages'), {
+  text: txt,
+  nickname: currentUserDoc?.nickname || currentUser.displayName || '',
+  username: currentUserDoc?.username || null,
+  avatarUrl: currentUserDoc?.avatarUrl || currentUser.photoURL || '',
+  userId: currentUser.uid,
+  role: currentUserDoc?.role || "user",
+  timestamp: Date.now()
+});
+estamp: Date.now()
   });
   messageInput.value = '';
 }
@@ -233,7 +236,22 @@ function listenMessages() {
 
         const info = document.createElement('div'); info.className = 'msg-info';
         if (m.avatarUrl) { const img = document.createElement('img'); img.src = m.avatarUrl; img.onclick = () => openUserProfile(m.userId); info.appendChild(img); }
-        const nameSpan = document.createElement('span'); nameSpan.textContent = m.nickname || 'Unknown'; nameSpan.onclick = () => openUserProfile(m.userId); info.appendChild(nameSpan);
+       const nameSpan = document.createElement('span');
+
+if (m.role === "admin") {
+  nameSpan.innerHTML = `
+    <span class="admin-name">
+      <span class="admin-crown">👑</span>
+      ${m.nickname}
+    </span>
+  `;
+} else {
+  nameSpan.textContent = m.nickname || 'Unknown';
+}
+
+nameSpan.onclick = () => openUserProfile(m.userId);
+info.appendChild(nameSpan);
+
 
         if (currentUserIsAdmin || currentUserRole === 'coadmin') {
           const del = document.createElement('button'); del.textContent = 'Del';
@@ -250,3 +268,4 @@ function listenMessages() {
     messagesDiv.scrollTo({ top: messagesDiv.scrollHeight, behavior: 'smooth' });
   });
 }
+
