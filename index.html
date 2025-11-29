@@ -1,290 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Link Chat App</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Realtime Chat App</title>
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js" defer></script>
 </head>
 <body>
 
-<!-- LOGIN OVERLAY -->
-<div id="login-overlay">
-  <div class="login-card">
-    <h2>Login to Link Chat</h2>
-    <button id="google-login-btn">Login with Google</button>
+<!-- Hamburger Menu -->
+<div id="hamburgerMenu" class="menu-closed">
+  <div class="menu-header">
+    <h2>Your Rooms</h2>
+    <button id="closeMenu">✕</button>
   </div>
+  <ul id="roomList"></ul>
+</div>
+<button id="openMenu" class="hamburger-btn">☰</button>
+
+<!-- Login -->
+<div id="loginSection">
+  <h2>Login to Chat</h2>
+  <button id="googleLogin">Sign in with Google</button>
 </div>
 
-<!-- MAIN APP GRID -->
-<div class="app-grid hidden">
-
-  <!-- LEFT PANEL -->
-  <div class="left-col">
-    <div class="left-header">
-      <div class="brand">
-        <div class="logo">💬</div>
-        <div class="brand-text">
-          <div class="title">Link Chat</div>
-          <div class="subtitle">Your Rooms</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ROOM CONTROLS -->
-    <div class="room-controls">
-      <button id="create-room">Create Chat</button>
-      <input type="text" id="room-name" placeholder="Room Name">
-      <input type="text" id="room-pass" placeholder="Password (Optional)">
-      <button id="join-room">Join Room</button>
-      <p id="room-id-display"></p>
-      <p id="room-pass-display"></p>
-      <p id="link-display"></p>
-    </div>
-
-    <!-- CHATS LIST -->
-    <div class="chats-list" id="chats-list"></div>
-    <div class="left-footer"><p id="chats-left">Loading chats...</p></div>
-  </div>
-
-  <!-- MAIN CHAT AREA -->
-  <div class="main-col">
-    <div class="topbar">
-      <div class="top-left">
-        <span class="room-title" id="room-title">Select a Chat</span>
-      </div>
-      <div class="top-right">
-        <div class="profile-btn" id="profile-btn" title="Open profile">
-          <img src="" class="avatar" id="profile-avatar" alt="avatar">
-        </div>
-        <button id="logout-btn">Log Out</button>
-      </div>
-    </div>
-
-    <div class="chat-area">
-      <div class="messages-wrap">
-        <div class="messages" id="messages"></div>
-      </div>
-      <div class="composer">
-        <input type="text" id="message-input" placeholder="Type a message">
-        <button id="send-btn">Send</button>
-      </div>
-    </div>
-  </div>
-
+<!-- Profile Setup -->
+<div id="profileSetup" class="hidden">
+  <h2>Set Up Your Profile</h2>
+  <input type="text" id="username" placeholder="Username">
+  <input type="text" id="nickname" placeholder="Nickname">
+  <input type="file" id="profilePic">
+  <button id="saveProfile">Save Profile</button>
 </div>
 
-<!-- PROFILE MODAL -->
-<div class="modal hidden" id="profile-modal">
-  <div class="modal-card">
-    <!-- VIEW PROFILE -->
-    <div id="profile-view">
-      <h3>Profile</h3>
-      <img id="view-pfp" src="" alt="avatar">
-      <p id="view-nickname"></p>
-      <p id="view-username"></p>
-      <p id="view-role"></p>
-      <p id="view-bio"></p>
-      <div id="view-admin-actions"></div>
-      <button id="close-profile-view">Close</button>
-      <button id="edit-profile-btn">Edit Profile</button>
-    </div>
-
-    <!-- EDIT PROFILE -->
-    <div id="profile-edit" class="hidden">
-      <h3>Edit Profile</h3>
-      <input type="text" id="edit-nickname" placeholder="Set nickname">
-      <input type="text" id="edit-username" placeholder="Set username">
-      <input type="file" id="edit-avatar" accept="image/*">
-      <p id="username-lock-note"></p>
-      <div class="profile-actions">
-        <button id="save-profile">Save</button>
-        <button id="cancel-edit">Cancel</button>
-      </div>
-    </div>
-
+<!-- Chat Section -->
+<div id="chatSection" class="hidden">
+  <div class="room-header">
+    <h3 id="roomNameDisplay">Room: </h3>
+    <button id="createRoom">Create Room</button>
+    <button id="copyLink">Copy Join Link</button>
+    <button id="logoutBtn">Logout</button>
   </div>
+  <div id="chatWindow"></div>
+  <input type="text" id="messageInput" placeholder="Type a message...">
+  <button id="sendMessage">Send</button>
 </div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-
-// ===== FIREBASE CONFIG =====
-const firebaseConfig = {
-    apiKey: "AIzaSyAEWxTJ1loQkXM1ShwAAF1J15RQLlCgdGM",
-    authDomain: "msgapp-262c9.firebaseapp.com",
-    projectId: "msgapp-262c9",
-    storageBucket: "msgapp-262c9.firebasestorage.app",
-    messagingSenderId: "122648836940",
-    appId: "1:122648836940:web:a098c052f65f3eb305ade9"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth();
-const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
-
-// ===== DOM ELEMENTS =====
-const loginOverlay = document.getElementById("login-overlay");
-const googleLoginBtn = document.getElementById("google-login-btn");
-const appGrid = document.querySelector(".app-grid");
-const topAvatar = document.getElementById("profile-avatar");
-const messagesContainer = document.getElementById("messages");
-const messageInput = document.getElementById("message-input");
-const sendBtn = document.getElementById("send-btn");
-const joinRoomBtn = document.getElementById("join-room");
-const createRoomBtn = document.getElementById("create-room");
-const roomNameInput = document.getElementById("room-name");
-const logoutBtn = document.getElementById("logout-btn");
-const profileModal = document.getElementById("profile-modal");
-const viewPfp = document.getElementById("view-pfp");
-const editUsernameInput = document.getElementById("edit-username");
-const saveProfileBtn = document.getElementById("save-profile");
-
-let currentUser = null;
-let currentRoom = null;
-let isAdmin = false;
-
-// ===== ADMIN UID =====
-const ADMIN_UID = "YOUR_ADMIN_UID_HERE"; // replace with your Firebase UID
-
-// ===== LOGIN =====
-googleLoginBtn.addEventListener("click", async () => {
-    try {
-        const result = await signInWithPopup(auth, provider);
-        currentUser = result.user;
-        isAdmin = currentUser.uid === ADMIN_UID;
-
-        loginOverlay.classList.add("hidden");
-        appGrid.classList.remove("hidden");
-        topAvatar.src = currentUser.photoURL || "";
-
-        await ensureUserProfile();
-    } catch (err) {
-        console.error("Login failed:", err);
-        alert("Login failed: " + err.message);
-    }
-});
-
-// ===== ENSURE USER PROFILE =====
-async function ensureUserProfile() {
-    const userRef = doc(db, "users", currentUser.uid);
-    const snap = await getDoc(userRef);
-    if (!snap.exists()) {
-        await setDoc(userRef, {
-            username: currentUser.displayName,
-            avatar: currentUser.photoURL || "",
-            lastUsernameChange: Date.now(),
-            isAdmin
-        });
-    }
-}
-
-// ===== SEND MESSAGE =====
-sendBtn.addEventListener("click", async () => {
-    if (!currentRoom) return alert("Join a room first!");
-    const text = messageInput.value.trim();
-    if (!text) return;
-
-    const roomRef = collection(db, "rooms", currentRoom, "messages");
-    await addDoc(roomRef, {
-        text,
-        uid: currentUser.uid,
-        username: currentUser.displayName,
-        avatar: currentUser.photoURL,
-        timestamp: Date.now(),
-        isAdmin
-    });
-    messageInput.value = "";
-});
-
-// ===== CREATE / JOIN ROOM =====
-createRoomBtn.addEventListener("click", async () => {
-    const roomName = roomNameInput.value.trim();
-    if (!roomName) return alert("Enter a room name");
-    const roomDoc = doc(db, "rooms", roomName);
-    const snap = await getDoc(roomDoc);
-    if (snap.exists()) return alert("Room already exists");
-
-    await setDoc(roomDoc, { createdAt: Date.now(), creator: currentUser.uid });
-    joinRoom(roomName);
-});
-
-joinRoomBtn.addEventListener("click", async () => {
-    const roomName = roomNameInput.value.trim();
-    if (!roomName) return alert("Enter a room name");
-    joinRoom(roomName);
-});
-
-async function joinRoom(roomName) {
-    currentRoom = roomName;
-    messagesContainer.innerHTML = "";
-    const roomRef = collection(db, "rooms", roomName, "messages");
-    const q = query(roomRef, orderBy("timestamp"));
-
-    onSnapshot(q, (snapshot) => {
-        messagesContainer.innerHTML = "";
-        snapshot.forEach(docSnap => displayMessage(docSnap.data()));
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    });
-}
-
-// ===== DISPLAY MESSAGE =====
-function displayMessage(msg) {
-    const div = document.createElement("div");
-    div.classList.add("message", msg.uid === currentUser.uid ? "mine" : "theirs");
-
-    let usernameBadge = msg.username;
-    if (msg.isAdmin) usernameBadge += ' <span class="admin-crown">★</span>';
-
-    div.innerHTML = `
-        <div class="msg-info">
-            <img src="${msg.avatar}" alt="${msg.username}">
-            <strong>${usernameBadge}</strong>
-        </div>
-        <div>${msg.text}</div>
-    `;
-    messagesContainer.appendChild(div);
-}
-
-// ===== PROFILE EDIT =====
-saveProfileBtn.addEventListener("click", async () => {
-    const newUsername = editUsernameInput.value.trim();
-    if (!newUsername) return alert("Enter a username");
-
-    const userRef = doc(db, "users", currentUser.uid);
-    const snap = await getDoc(userRef);
-    const data = snap.data();
-    const fifteenDays = 1000 * 60 * 60 * 24 * 15;
-
-    if (Date.now() - data.lastUsernameChange < fifteenDays) {
-        return alert("Username can only be changed once every 15 days");
-    }
-
-    await setDoc(userRef, { ...data, username: newUsername, lastUsernameChange: Date.now() });
-    alert("Username updated!");
-});
-
-// ===== LOGOUT =====
-logoutBtn.addEventListener("click", () => signOut(auth).then(() => location.reload()));
-
-// ===== AUTH STATE =====
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        currentUser = user;
-        isAdmin = currentUser.uid === ADMIN_UID;
-        loginOverlay.classList.add("hidden");
-        appGrid.classList.remove("hidden");
-        topAvatar.src = currentUser.photoURL || "";
-        ensureUserProfile();
-    } else {
-        loginOverlay.classList.remove("hidden");
-        appGrid.classList.add("hidden");
-    }
-});
-</script>
 
 </body>
 </html>
