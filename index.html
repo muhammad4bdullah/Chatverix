@@ -3,49 +3,70 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Realtime Chat App</title>
+<title>Link Chat App</title>
 <link rel="stylesheet" href="style.css">
-<script type="module" src="app.js" defer></script>
 </head>
 <body>
 
-<!-- Hamburger Menu -->
-<div id="hamburgerMenu" class="menu-closed">
-  <div class="menu-header">
-    <h2>Your Rooms</h2>
-    <button id="closeMenu">✕</button>
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay">
+  <div class="login-card">
+    <h2>Login to Link Chat</h2>
+    <button id="google-login-btn">Login with Google</button>
   </div>
-  <ul id="roomList"></ul>
-</div>
-<button id="openMenu" class="hamburger-btn">☰</button>
-
-<!-- Login Section -->
-<div id="loginSection">
-  <h2>Login to Chat</h2>
-  <button id="googleLogin">Sign in with Google</button>
 </div>
 
-<!-- Profile Setup -->
-<div id="profileSetup" class="hidden">
-  <h2>Set Up Your Profile</h2>
-  <input type="text" id="username" placeholder="Username">
-  <input type="text" id="nickname" placeholder="Nickname">
-  <input type="file" id="profilePic">
-  <button id="saveProfile">Save Profile</button>
-</div>
+<!-- MAIN APP GRID -->
+<div class="app-grid hidden">
 
-<!-- Chat Section -->
-<div id="chatSection" class="hidden">
-  <div class="room-header">
-    <h3 id="roomNameDisplay">Room: </h3>
-    <button id="createRoom">Create Room</button>
-    <button id="copyLink">Copy Join Link</button>
-    <button id="logoutBtn">Logout</button>
+  <!-- LEFT PANEL -->
+  <div class="left-col">
+    <div class="left-header">
+      <div class="brand">
+        <div class="logo">💬</div>
+        <div class="brand-text">
+          <div class="title">Link Chat</div>
+          <div class="subtitle">Your Rooms</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROOM CONTROLS -->
+    <div class="room-controls">
+      <button id="create-room">Create Random Room</button>
+      <input type="text" id="nicknameInput" placeholder="Set Nickname">
+    </div>
+
+    <!-- CHATS LIST -->
+    <ul class="chats-list" id="roomList"></ul>
+    <div class="left-footer"><p id="chats-left">Loading chats...</p></div>
   </div>
-  <div id="chatWindow"></div>
-  <input type="text" id="messageInput" placeholder="Type a message...">
-  <button id="sendMessage">Send</button>
+
+  <!-- MAIN CHAT AREA -->
+  <div class="main-col">
+    <div class="topbar">
+      <div class="top-left">
+        <span class="room-title" id="room-title">Select a Chat</span>
+      </div>
+      <div class="top-right">
+        <img src="" class="avatar" id="profile-avatar" alt="avatar" title="Open Profile">
+        <button id="logout-btn">Log Out</button>
+      </div>
+    </div>
+
+    <div class="chat-area">
+      <div class="messages-wrap">
+        <div class="messages" id="messages"></div>
+      </div>
+      <div class="composer">
+        <input type="text" id="message-input" placeholder="Type a message">
+        <button id="send-btn">Send</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
+<script type="module" src="app.js"></script>
 </body>
 </html>
