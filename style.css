@@ -310,6 +310,26 @@ button { cursor: pointer; }
   border-radius: 3px;
 }
 
+.admin-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #ffd700, #ffce00, #fff1a8);
+  color: #2a1f00;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 215, 0, 0.7);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+.admin-crown {
+  font-size: 1.1rem;
+  filter: drop-shadow(0 0 3px gold);
+}
+
+
 /* RESPONSIVE */
 @media (max-width: 768px){
   .app-grid {
@@ -325,4 +345,5 @@ button { cursor: pointer; }
     flex: 1;
   }
 }
+
 
