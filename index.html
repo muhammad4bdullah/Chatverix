@@ -31,6 +31,7 @@
       </div>
     </div>
 
+    <!-- ROOM CONTROLS -->
     <div class="room-controls">
       <button id="create-chat">Create Chat</button>
       <input type="text" id="room-id" placeholder="Room ID">
@@ -45,15 +46,15 @@
     <div class="left-footer"><p id="chats-left">Loading...</p></div>
   </div>
 
-  <!-- MAIN PANEL -->
+  <!-- MAIN CHAT AREA -->
   <div class="main-col">
     <div class="topbar">
       <div class="top-left">
         <span class="room-title" id="room-title">Select a Chat</span>
       </div>
       <div class="top-right">
-        <div id="profile-btn" class="profile-btn">
-          <img id="profile-avatar" class="avatar" src="" alt="avatar">
+        <div class="profile-btn" id="profile-btn" title="Open profile">
+          <img src="" class="avatar" id="profile-avatar" alt="avatar">
         </div>
         <button id="logout-btn">Log Out</button>
       </div>
@@ -72,8 +73,9 @@
 </div>
 
 <!-- PROFILE MODAL -->
-<div id="profile-modal" class="modal hidden">
+<div class="modal hidden" id="profile-modal">
   <div class="modal-card">
+    <!-- VIEW MODE -->
     <div id="profile-view">
       <img id="view-pfp" src="" alt="avatar">
       <p id="view-nickname"></p>
@@ -84,10 +86,12 @@
       <button id="close-profile-view">Close</button>
     </div>
 
+    <!-- EDIT MODE -->
     <div id="profile-edit" class="hidden">
+      <input type="text" id="edit-nickname" placeholder="Set nickname">
+      <input type="text" id="edit-username" placeholder="Set username">
       <input type="file" id="edit-avatar" accept="image/*">
-      <input type="text" id="edit-nickname" placeholder="Nickname">
-      <input type="text" id="edit-username" placeholder="Username">
+      <p id="username-lock-note"></p>
       <div class="profile-actions">
         <button id="save-profile">Save</button>
         <button id="cancel-edit">Cancel</button>
