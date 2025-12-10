@@ -1,72 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Link Chat App</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WhatsChat — Abdullah</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- LOGIN OVERLAY -->
-<div id="login-overlay">
-  <div class="login-card">
-    <h2>Login to Link Chat</h2>
-    <button id="google-login-btn">Login with Google</button>
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen" class="screen">
+    <div class="login-card">
+      <h1>WhatsChat</h1>
+      <p class="muted">Sign in to join rooms and chat with friends</p>
+      <button id="googleLogin" class="primary">Login with Google</button>
+      <small class="muted">You will be asked for Google permission</small>
+    </div>
   </div>
-</div>
 
-<!-- MAIN APP GRID -->
-<div class="app-grid hidden">
+  <!-- MAIN APP -->
+  <div id="main" class="hidden screen">
 
-  <!-- LEFT PANEL -->
-  <div class="left-col">
-    <div class="left-header">
-      <div class="brand">
-        <div class="logo">💬</div>
-        <div class="brand-text">
-          <div class="title">Link Chat</div>
-          <div class="subtitle">Your Rooms</div>
+    <!-- PROFILE BAR -->
+    <div id="profileBar">
+      <img id="userPhoto" alt="avatar"/>
+      <div class="profile-info">
+        <div id="userNameDisplay" class="username">User</div>
+        <div id="userEmail" class="muted small"></div>
+      </div>
+      <div style="margin-left:12px; display:flex; gap:6px; align-items:center;">
+        <input id="editNickname" placeholder="Nickname">
+        <input id="editPhoto" placeholder="Profile pic URL">
+        <button id="btnSaveProfile" class="small primary">Save</button>
+      </div>
+      <div style="flex:1"></div>
+      <button id="btnLogout" class="ghost">Logout</button>
+    </div>
+
+    <!-- APP CONTAINER -->
+    <div id="appContainer">
+
+      <!-- SIDEBAR -->
+      <aside id="sidebar">
+        <div class="sidebar-actions">
+          <button id="btnShowCreate" class="small">+ Create Room</button>
+          <button id="btnShowJoin" class="small">→ Join Room</button>
         </div>
-      </div>
-    </div>
 
-    <!-- ROOM CONTROLS -->
-    <div class="room-controls">
-      <button id="create-room">Create Random Room</button>
-      <input type="text" id="nicknameInput" placeholder="Set Nickname">
-    </div>
+        <div id="createRoomSection" class="panel hidden">
+          <label>Room Name</label>
+          <input id="roomNameCreate" placeholder="Optional room name">
+          <label>Room password (numbers)</label>
+          <input id="roomPASScreate" placeholder="e.g. 123456" inputmode="numeric">
+          <button id="btnCreate" class="primary small">Create</button>
+        </div>
 
-    <!-- CHATS LIST -->
-    <ul class="chats-list" id="roomList"></ul>
-    <div class="left-footer"><p id="chats-left">Loading chats...</p></div>
+        <div id="joinRoomSection" class="panel hidden">
+          <label>Room ID</label>
+          <input id="roomIDjoin" placeholder="Room ID">
+          <label>Room password</label>
+          <input id="roomPASSjoin" placeholder="Password" inputmode="numeric">
+          <button id="btnJoin" class="primary small">Join</button>
+        </div>
+
+        <h3 class="section-title">Your Rooms</h3>
+        <div id="roomList" class="room-list">
+          <div class="muted small" id="noRooms">No rooms yet — create or join one.</div>
+        </div>
+      </aside>
+
+      <!-- CHAT PANEL -->
+      <section id="chat">
+        <div id="chatHeader">No Room Selected</div>
+
+        <!-- Room info below join/create -->
+        <div id="roomInfo"></div>
+
+        <div id="messages" class="messages">
+          <div class="muted center">Select a room to start chatting</div>
+        </div>
+
+        <div id="chatBottom">
+          <input id="msgInput" placeholder="Type a message..." autocomplete="off" />
+          <button id="sendMsg" title="Send">➤</button>
+        </div>
+      </section>
+
+    </div>
   </div>
 
-  <!-- MAIN CHAT AREA -->
-  <div class="main-col">
-    <div class="topbar">
-      <div class="top-left">
-        <span class="room-title" id="room-title">Select a Chat</span>
-      </div>
-      <div class="top-right">
-        <img src="" class="avatar" id="profile-avatar" alt="avatar" title="Open Profile">
-        <button id="logout-btn">Log Out</button>
-      </div>
-    </div>
-
-    <div class="chat-area">
-      <div class="messages-wrap">
-        <div class="messages" id="messages"></div>
-      </div>
-      <div class="composer">
-        <input type="text" id="message-input" placeholder="Type a message">
-        <button id="send-btn">Send</button>
-      </div>
+  <!-- PROFILE MODAL -->
+  <div id="profileModal">
+    <div class="panel">
+      <h3>Edit Profile</h3>
+      <img id="modalPhoto">
+      <label>Nickname <span id="editNickToggle">✏️</span></label>
+      <input id="modalNickname">
+      <label>Profile Picture URL <span id="editPhotoToggle">✏️</span></label>
+      <input id="modalPhotoURL">
+      <label>Date of Birth <span id="editDOBToggle">✏️</span></label>
+      <input type="date" id="modalDOB">
+      <button id="modalSaveProfile">Save</button>
+      <button id="modalClose">Close</button>
     </div>
   </div>
 
-</div>
-
-<script type="module" src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
