@@ -28,11 +28,7 @@
         <div id="userNameDisplay" class="username">User</div>
         <div id="userEmail" class="muted small"></div>
       </div>
-      <div style="margin-left:12px; display:flex; gap:6px; align-items:center;">
-        <input id="editNickname" placeholder="Nickname">
-        <input id="editPhoto" placeholder="Profile pic URL">
-        <button id="btnSaveProfile" class="small primary">Save</button>
-      </div>
+
       <div style="flex:1"></div>
       <button id="btnLogout" class="ghost">Logout</button>
     </div>
@@ -47,6 +43,7 @@
           <button id="btnShowJoin" class="small">→ Join Room</button>
         </div>
 
+        <!-- Create Room -->
         <div id="createRoomSection" class="panel hidden">
           <label>Room Name</label>
           <input id="roomNameCreate" placeholder="Optional room name">
@@ -55,6 +52,7 @@
           <button id="btnCreate" class="primary small">Create</button>
         </div>
 
+        <!-- Join Room -->
         <div id="joinRoomSection" class="panel hidden">
           <label>Room ID</label>
           <input id="roomIDjoin" placeholder="Room ID">
@@ -73,7 +71,6 @@
       <section id="chat">
         <div id="chatHeader">No Room Selected</div>
 
-        <!-- Room info below join/create -->
         <div id="roomInfo"></div>
 
         <div id="messages" class="messages">
@@ -82,7 +79,7 @@
 
         <div id="chatBottom">
           <input id="msgInput" placeholder="Type a message..." autocomplete="off" />
-          <button id="sendMsg" title="Send">➤</button>
+          <button id="sendMsg">➤</button>
         </div>
       </section>
 
@@ -91,17 +88,26 @@
 
   <!-- PROFILE MODAL -->
   <div id="profileModal">
-    <div class="panel">
-      <h3>Edit Profile</h3>
-      <img id="modalPhoto">
-      <label>Nickname <span id="editNickToggle">✏️</span></label>
-      <input id="modalNickname">
-      <label>Profile Picture URL <span id="editPhotoToggle">✏️</span></label>
-      <input id="modalPhotoURL">
-      <label>Date of Birth <span id="editDOBToggle">✏️</span></label>
-      <input type="date" id="modalDOB">
-      <button id="modalSaveProfile">Save</button>
-      <button id="modalClose">Close</button>
+    <div class="panel modal-content">
+      <span id="modalClose" class="close">&times;</span>
+      <h2>Edit Profile</h2>
+
+      <div class="modal-avatar">
+        <img id="modalPhoto" src="https://i.ibb.co/7QpKsCX/default-avatar.png" alt="Avatar">
+        <p>Click avatar to change</p>
+      </div>
+
+      <div class="modal-field">
+        <label for="modalNickname">Nickname</label>
+        <input type="text" id="modalNickname" placeholder="Enter nickname">
+      </div>
+
+      <div class="modal-field">
+        <label for="modalDOB">Date of Birth</label>
+        <input type="date" id="modalDOB">
+      </div>
+
+      <button id="modalSaveProfile" class="save-btn">Save Changes</button>
     </div>
   </div>
 
