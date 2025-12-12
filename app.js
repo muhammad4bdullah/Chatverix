@@ -83,6 +83,13 @@ onAuthStateChanged(auth, async user => {
 
     await loadUserProfile(user.uid);
     loadRooms();
+
+    // --- CHECK URL PARAMETERS FOR AUTO-JOIN ---
+    const params = new URLSearchParams(window.location.search);
+    const roomID = params.get("room");
+    const roomPASS = params.get("pass");
+    if (roomID) handleRoomLink(roomID, roomPASS);
+
   } else {
     currentUser = null;
     loginScreen.style.display = "block";
@@ -90,6 +97,24 @@ onAuthStateChanged(auth, async user => {
     clearUI();
   }
 });
+
+// ------------------------ HANDLE ROOM LINK ------------------------
+async function handleRoomLink(roomID, passFromURL) {
+  const snap = await get(ref(db, `rooms/${roomID}`));
+  if (!snap.exists()) return alert("Room not found");
+
+  let pass = passFromURL;
+  if (!pass) {
+    pass = prompt("Enter room password to join:");
+    if (!pass) return;
+  }
+
+  if (snap.val().pass !== pass) return alert("Wrong password");
+
+  await set(ref(db, `members/${roomID}/${currentUser.uid}`), true);
+  openRoom(roomID);
+  updateRoomInfo(roomID, pass, snap.val().chatName, snap.val().roomURL);
+}
 
 // ------------------------ LOAD USER PROFILE ------------------------
 async function loadUserProfile(uid) {
@@ -133,7 +158,7 @@ btnCreate.onclick = async () => {
 
   const id = randomRoomID();
   const chatName = roomNameCreate.value.trim() || id;
-  const roomURL = `${location.origin}${location.pathname}?room=${id}`;
+  const roomURL = `${location.origin}${location.pathname}?room=${id}&pass=${pass}`;
 
   await set(ref(db, `rooms/${id}`), {
     pass,
@@ -247,24 +272,21 @@ function showRoomMenu(e, roomID) {
   }, 50);
 }
 
-// ------------------------ RENAME ROOM ------------------------
+// ------------------------ RENAME & DELETE ------------------------
 window.renameRoom = async (roomID) => {
   const snap = await get(ref(db, `rooms/${roomID}`));
   if (!snap.exists()) return;
 
   const currentName = snap.val().chatName;
   const newName = prompt("Enter new chat name:", currentName);
-
   if (!newName || newName.trim() === "") return;
 
   await update(ref(db, `rooms/${roomID}`), { chatName: newName.trim() });
-
   if (activeRoom === roomID) chatHeader.innerText = newName;
 
   loadRooms();
 };
 
-// ------------------------ DELETE ROOM ------------------------
 window.deleteRoom = async (roomID) => {
   if (!confirm("Are you sure you want to delete this room?")) return;
 
@@ -284,7 +306,6 @@ window.deleteRoom = async (roomID) => {
 // ------------------------ OPEN ROOM ------------------------
 window.openRoom = async function(roomID) {
   activeRoom = roomID;
-
   const snap = await get(ref(db, `rooms/${roomID}`));
   chatHeader.innerText = snap.exists() ? snap.val().chatName : roomID;
 
@@ -295,7 +316,6 @@ window.openRoom = async function(roomID) {
 function listenMessages(roomID) {
   onValue(ref(db, `messages/${roomID}`), snap => {
     messagesEl.innerHTML = "";
-
     if (!snap.exists()) {
       messagesEl.innerHTML = `<div class="center muted">No messages</div>`;
       return;
@@ -372,7 +392,6 @@ function clearUI() {
 }
 
 // ------------------------ PROFILE MODAL ------------------------
-// Already handled above (avatar, nickname, DOB)
 modalClose.onclick = () => profileModal.classList.remove("show");
 
 modalSaveProfile.onclick = async () => {
@@ -398,7 +417,6 @@ modalSaveProfile.onclick = async () => {
 
   userPhoto.src = modalPhoto.src;
   userNameDisplay.innerText = modalNickname.value;
-
   profileModal.classList.remove("show");
   alert("Profile updated!");
 };
