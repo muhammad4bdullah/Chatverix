@@ -1,9 +1,13 @@
-// app.js
+// ------------------------ IMPORTS ------------------------
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getDatabase, ref, set, push, onValue, get, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { 
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { 
+  getDatabase, ref, set, push, onValue, get, remove, update 
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-// --- Firebase config ---
+// ------------------------ FIREBASE INIT ------------------------
 const firebaseConfig = {
   apiKey: "AIzaSyAEWxTJ1loQkXM1ShwAAF1J15RQLlCgdGM",
   authDomain: "msgapp-262c9.firebaseapp.com",
@@ -19,150 +23,66 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 const provider = new GoogleAuthProvider();
 
+// ------------------------ GLOBALS ------------------------
 let currentUser = null;
 let activeRoom = null;
+const DEFAULT_AVATAR = "https://i.ibb.co/7QpKsCX/default-avatar.png";
 
-// --- UI elements ---
+// ------------------------ UI ELEMENTS ------------------------
 const loginScreen = document.getElementById("login-screen");
 const mainScreen = document.getElementById("main");
+
 const googleLoginBtn = document.getElementById("googleLogin");
+const btnLogout = document.getElementById("btnLogout");
+
 const userPhoto = document.getElementById("userPhoto");
 const userNameDisplay = document.getElementById("userNameDisplay");
 const userEmail = document.getElementById("userEmail");
-const btnLogout = document.getElementById("btnLogout");
-
-const editNicknameInput = document.getElementById("editNickname");
-const editPhotoInput = document.getElementById("editPhoto");
-const btnSaveProfile = document.getElementById("btnSaveProfile");
 
 const btnShowCreate = document.getElementById("btnShowCreate");
 const btnShowJoin = document.getElementById("btnShowJoin");
+
 const createRoomSection = document.getElementById("createRoomSection");
 const joinRoomSection = document.getElementById("joinRoomSection");
-const btnCreate = document.getElementById("btnCreate");
-const btnJoin = document.getElementById("btnJoin");
-const roomPASScreate = document.getElementById("roomPASScreate");
+
 const roomNameCreate = document.getElementById("roomNameCreate");
+const roomPASScreate = document.getElementById("roomPASScreate");
+const btnCreate = document.getElementById("btnCreate");
+
 const roomIDjoin = document.getElementById("roomIDjoin");
 const roomPASSjoin = document.getElementById("roomPASSjoin");
+const btnJoin = document.getElementById("btnJoin");
 
 const roomListEl = document.getElementById("roomList");
 const noRooms = document.getElementById("noRooms");
+
 const chatHeader = document.getElementById("chatHeader");
 const messagesEl = document.getElementById("messages");
 const msgInput = document.getElementById("msgInput");
 const sendMsg = document.getElementById("sendMsg");
+
 const roomInfoEl = document.getElementById("roomInfo");
 
-// Profile modal elements
 const profileModal = document.getElementById("profileModal");
 const modalPhoto = document.getElementById("modalPhoto");
 const modalNickname = document.getElementById("modalNickname");
-const modalPhotoURL = document.getElementById("modalPhotoURL");
-const modalDOB = document.createElement("input");
-modalDOB.type = "date";
-modalDOB.id = "modalDOB";
-modalDOB.placeholder = "Date of Birth";
-modalDOB.style.width = "100%";
-modalDOB.style.padding = "6px 8px";
-modalDOB.style.borderRadius = "6px";
-modalDOB.style.border = "none";
-modalDOB.style.background = "#051017";
-modalDOB.style.color = "#eaf3f5";
-profileModal.querySelector(".panel").insertBefore(modalDOB, profileModal.querySelector("#modalSaveProfile"));
-
-const modalSave = document.getElementById("modalSaveProfile");
+const modalDOB = document.getElementById("modalDOB");
+const modalSaveProfile = document.getElementById("modalSaveProfile");
 const modalClose = document.getElementById("modalClose");
-const editNickToggle = document.getElementById("editNickToggle");
-const editPhotoToggle = document.getElementById("editPhotoToggle");
 
-// --- Auth handlers ---
-googleLoginBtn.onclick = () => signInWithPopup(auth, provider).catch(err => alert(err.message || err));
-btnLogout.onclick = () => signOut(auth).catch(console.error);
+// ------------------------ LOGIN HANDLERS ------------------------
+googleLoginBtn.onclick = () => signInWithPopup(auth, provider);
+btnLogout.onclick = () => signOut(auth);
 
-// --- Profile save (top bar) ---
-btnSaveProfile.onclick = async () => {
-  if (!currentUser) return;
-  const nickname = editNicknameInput.value.trim() || currentUser.displayName || "User";
-  const photoURL = editPhotoInput.value.trim() || currentUser.photoURL || "";
-  try {
-    await updateProfile(currentUser, { displayName: nickname, photoURL });
-    await update(ref(db, `users/${currentUser.uid}`), { displayName: nickname, photoURL });
-    userNameDisplay.innerText = nickname;
-    userPhoto.src = photoURL || "";
-    alert("Profile updated!");
-  } catch(err) { console.error(err); alert("Failed to update profile"); }
-};
-
-// --- Profile modal handlers ---
-userPhoto.onclick = () => {
-  if (!currentUser) return;
-  profileModal.classList.add("show");
-  modalPhoto.src = currentUser.photoURL || "";
-  modalNickname.value = currentUser.displayName || "User";
-  modalPhotoURL.value = currentUser.photoURL || "";
-  get(ref(db, `users/${currentUser.uid}/dob`)).then(snap => {
-    modalDOB.value = snap.exists() ? snap.val() : "";
-  });
-};
-
-modalClose.onclick = () => profileModal.classList.remove("show");
-modalSave.onclick = async () => {
-  if (!currentUser) return;
-  const nickname = modalNickname.value.trim() || "User";
-  const photoURL = modalPhotoURL.value.trim() || "";
-  const dob = modalDOB.value || "";
-  try {
-    await updateProfile(currentUser, { displayName: nickname, photoURL });
-    await update(ref(db, `users/${currentUser.uid}`), { displayName: nickname, photoURL, dob });
-    userNameDisplay.innerText = nickname;
-    userPhoto.src = photoURL || "";
-    profileModal.classList.remove("show");
-    alert("Profile updated!");
-  } catch(err) { console.error(err); alert("Failed to update profile"); }
-};
-
-// --- Toggle sections ---
-btnShowCreate.onclick = () => {
-  createRoomSection.classList.toggle("hidden");
-  joinRoomSection.classList.add("hidden");
-  roomPASScreate.value = "";
-  roomNameCreate.value = "";
-  roomPASScreate.focus();
-};
-btnShowJoin.onclick = () => {
-  joinRoomSection.classList.toggle("hidden");
-  createRoomSection.classList.add("hidden");
-  roomIDjoin.value = "";
-  roomPASSjoin.value = "";
-  roomIDjoin.focus();
-};
-
-// --- Auth state ---
+// ------------------------ AUTH STATE CHANGE ------------------------
 onAuthStateChanged(auth, async user => {
   if (user) {
     currentUser = user;
     loginScreen.style.display = "none";
     mainScreen.style.display = "block";
 
-    userPhoto.src = user.photoURL || "";
-    userNameDisplay.innerText = user.displayName || "User";
-    userEmail.innerText = user.email || "";
-
-    editNicknameInput.value = user.displayName || "User";
-    editPhotoInput.value = user.photoURL || "";
-
-    await set(ref(db, `users/${user.uid}`), {
-      uid: user.uid,
-      displayName: user.displayName || "User",
-      email: user.email || "",
-      photoURL: user.photoURL || "",
-      lastLogin: Date.now()
-    });
-
+    await loadUserProfile(user.uid);
     loadRooms();
-    createRoomSection.classList.add("hidden");
-    joinRoomSection.classList.add("hidden");
   } else {
     currentUser = null;
     loginScreen.style.display = "block";
@@ -171,177 +91,314 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
-// --- Room creation ---
-function randomRoomID() { return Math.random().toString(36).substring(2,8).toUpperCase(); }
+// ------------------------ LOAD USER PROFILE ------------------------
+async function loadUserProfile(uid) {
+  const snap = await get(ref(db, `users/${uid}`));
+  const data = snap.exists() ? snap.val() : {};
 
-btnCreate.onclick = async () => {
-  if (!currentUser) { alert("Login first"); return; }
+  const nickname = data.displayName || currentUser.displayName || "User";
+  const photoURL = data.photoURL || currentUser.photoURL || DEFAULT_AVATAR;
 
-  let pass = roomPASScreate.value.trim();
-  if (!/^\d{6,}$/.test(pass)) {
-    pass = prompt("Enter a 6-digit numeric room password:");
-    if (!pass || !/^\d{6,}$/.test(pass)) { alert("Invalid password"); return; }
-  }
+  userPhoto.src = photoURL;
+  userNameDisplay.innerText = nickname;
+  userEmail.innerText = currentUser.email;
 
-  const id = randomRoomID();
-  const name = roomNameCreate.value.trim() || "Unnamed Room";
-  const roomURL = `${window.location.origin}${window.location.pathname}?room=${id}`;
-
-  try {
-    await set(ref(db, `rooms/${id}`), { name, pass, createdBy: currentUser.uid, createdAt: Date.now(), roomURL });
-    await set(ref(db, `members/${id}/${currentUser.uid}`), true);
-
-    roomPASScreate.value = "";
-    roomNameCreate.value = "";
-    loadRooms();
-    openRoom(id);
-    showRoomInfo(id, name, pass, roomURL);
-  } catch(err) { console.error(err); alert("Failed to create room"); }
-};
-
-// --- Join room ---
-btnJoin.onclick = async () => {
-  if (!currentUser) { alert("Login first"); return; }
-
-  const id = roomIDjoin.value.trim().toUpperCase();
-  const pass = roomPASSjoin.value.trim();
-  if (!id || !pass) { alert("Enter Room ID & Pass"); return; }
-
-  try {
-    const snap = await get(ref(db, `rooms/${id}`));
-    if (!snap.exists()) { alert("Room not found"); return; }
-    if ((snap.val().pass || "") !== pass) { alert("Wrong password"); return; }
-
-    await set(ref(db, `members/${id}/${currentUser.uid}`), true);
-    roomIDjoin.value = "";
-    roomPASSjoin.value = "";
-    openRoom(id);
-
-    const { name, roomURL } = snap.val();
-    showRoomInfo(id, name, pass, roomURL);
-  } catch(err) { console.error(err); alert("Failed to join room"); }
-};
-
-// --- Show room info ---
-function showRoomInfo(id, name, pass, url) {
-  roomInfoEl.innerHTML = `
-    <div><b>Room Name:</b> ${name}</div>
-    <div><b>Room ID:</b> ${id}</div>
-    <div><b>Pass:</b> ${pass}</div>
-    <div><b>Link:</b> <input type="text" value="${url}" readonly style="width:200px;"> <button onclick="copyRoomLink()">Copy</button></div>
-  `;
+  await update(ref(db, `users/${uid}`), {
+    uid,
+    displayName: nickname,
+    photoURL,
+    email: currentUser.email,
+    lastLogin: Date.now()
+  });
 }
 
-// --- Load rooms ---
+// ------------------------ CREATE & JOIN ROOM ------------------------
+btnShowCreate.onclick = () => {
+  createRoomSection.classList.toggle("hidden");
+  joinRoomSection.classList.add("hidden");
+};
+
+btnShowJoin.onclick = () => {
+  joinRoomSection.classList.toggle("hidden");
+  createRoomSection.classList.add("hidden");
+};
+
+function randomRoomID() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+btnCreate.onclick = async () => {
+  const pass = roomPASScreate.value.trim();
+  if (!/^\d{6}$/.test(pass)) return alert("Password must be 6 digits");
+
+  const id = randomRoomID();
+  const chatName = roomNameCreate.value.trim() || id;
+  const roomURL = `${location.origin}${location.pathname}?room=${id}`;
+
+  await set(ref(db, `rooms/${id}`), {
+    pass,
+    chatName,
+    roomURL,
+    createdBy: currentUser.uid,
+    createdAt: Date.now()
+  });
+  await set(ref(db, `members/${id}/${currentUser.uid}`), true);
+
+  loadRooms();
+  openRoom(id);
+  updateRoomInfo(id, pass, chatName, roomURL);
+};
+
+btnJoin.onclick = async () => {
+  const id = roomIDjoin.value.trim().toUpperCase();
+  const pass = roomPASSjoin.value.trim();
+
+  const snap = await get(ref(db, `rooms/${id}`));
+  if (!snap.exists()) return alert("Room not found");
+  if (snap.val().pass !== pass) return alert("Wrong password");
+
+  await set(ref(db, `members/${id}/${currentUser.uid}`), true);
+
+  openRoom(id);
+  updateRoomInfo(id, pass, snap.val().chatName, snap.val().roomURL);
+};
+
+// ------------------------ ROOM INFO ------------------------
+function updateRoomInfo(id, pass, name, url) {
+  roomInfoEl.innerHTML = `
+    <div><b>Name:</b> ${name}</div>
+    <div><b>ID:</b> ${id}</div>
+    <div><b>Password:</b> ${pass}</div>
+    <div><b>URL:</b> 
+      <input value="${url}" readonly style="width:200px;">
+      <button onclick="copyRoomLink()">Copy</button>
+    </div>`;
+}
+
+window.copyRoomLink = () => {
+  const box = roomInfoEl.querySelector("input");
+  if (box) navigator.clipboard.writeText(box.value).then(() => alert("Copied!"));
+};
+
+// ------------------------ ROOM LIST ------------------------
 function loadRooms() {
-  if (!currentUser) return;
   onValue(ref(db, "members"), snap => {
     roomListEl.innerHTML = "";
     let found = false;
+
     snap.forEach(roomSnap => {
       if (roomSnap.child(currentUser.uid).exists()) {
         found = true;
         const id = roomSnap.key;
-        get(ref(db, `rooms/${id}`)).then(roomSnapData => {
-          const roomName = roomSnapData.exists() ? roomSnapData.val().name : id;
-          const btn = document.createElement("button");
-          btn.textContent = `${roomName} (${id})`;
-          btn.onclick = () => openRoom(id);
-          roomListEl.appendChild(btn);
-        });
+
+        const row = document.createElement("div");
+        row.className = "room-row";
+
+        const btn = document.createElement("button");
+        btn.textContent = id;
+        btn.onclick = () => openRoom(id);
+
+        const dots = document.createElement("span");
+        dots.innerHTML = "⋮";
+        dots.className = "room-dots";
+        dots.style.marginLeft = "12px";
+        dots.style.zIndex = "9999";
+        dots.style.cursor = "pointer";
+
+        dots.onclick = e => {
+          e.stopPropagation();
+          showRoomMenu(e, id);
+        };
+
+        row.appendChild(btn);
+        row.appendChild(dots);
+        roomListEl.appendChild(row);
       }
     });
+
     noRooms.classList.toggle("hidden", found);
   });
 }
 
-// --- Open & listen ---
-window.openRoom = function(room){
-  activeRoom = room;
-  get(ref(db, `rooms/${room}`)).then(snap => {
-    const name = snap.exists() ? snap.val().name : room;
-    chatHeader.innerText = `Room: ${name}`;
-  });
-  messagesEl.innerHTML = `<div class="muted center">Loading messages...</div>`;
-  listenRoom(room);
+// ------------------------ THREE DOTS MENU ------------------------
+function showRoomMenu(e, roomID) {
+  const old = document.getElementById("roomMenu");
+  if (old) old.remove();
+
+  const menu = document.createElement("div");
+  menu.id = "roomMenu";
+  menu.className = "room-menu";
+  menu.style.position = "fixed";
+  menu.style.top = e.clientY + "px";
+  menu.style.left = e.clientX + "px";
+  menu.style.zIndex = "50000";
+
+  menu.innerHTML = `
+    <div onclick="renameRoom('${roomID}')">Rename</div>
+    <div onclick="deleteRoom('${roomID}')">Delete</div>
+  `;
+
+  document.body.appendChild(menu);
+
+  setTimeout(() => {
+    document.addEventListener("click", () => {
+      menu.remove();
+    }, { once: true });
+  }, 50);
+}
+
+// ------------------------ RENAME ROOM ------------------------
+window.renameRoom = async (roomID) => {
+  const snap = await get(ref(db, `rooms/${roomID}`));
+  if (!snap.exists()) return;
+
+  const currentName = snap.val().chatName;
+  const newName = prompt("Enter new chat name:", currentName);
+
+  if (!newName || newName.trim() === "") return;
+
+  await update(ref(db, `rooms/${roomID}`), { chatName: newName.trim() });
+
+  if (activeRoom === roomID) chatHeader.innerText = newName;
+
+  loadRooms();
 };
 
-function listenRoom(room) {
-  if (!room) return;
-  const messagesRef = ref(db, `messages/${room}`);
-  onValue(messagesRef, snap => {
+// ------------------------ DELETE ROOM ------------------------
+window.deleteRoom = async (roomID) => {
+  if (!confirm("Are you sure you want to delete this room?")) return;
+
+  await remove(ref(db, `rooms/${roomID}`));
+  await remove(ref(db, `members/${roomID}`));
+  await remove(ref(db, `messages/${roomID}`));
+
+  if (activeRoom === roomID) {
+    activeRoom = null;
+    chatHeader.innerText = "No Room";
+    messagesEl.innerHTML = `<div class="center muted">Select a room</div>`;
+  }
+
+  loadRooms();
+};
+
+// ------------------------ OPEN ROOM ------------------------
+window.openRoom = async function(roomID) {
+  activeRoom = roomID;
+
+  const snap = await get(ref(db, `rooms/${roomID}`));
+  chatHeader.innerText = snap.exists() ? snap.val().chatName : roomID;
+
+  listenMessages(roomID);
+};
+
+// ------------------------ LISTEN MESSAGES ------------------------
+function listenMessages(roomID) {
+  onValue(ref(db, `messages/${roomID}`), snap => {
     messagesEl.innerHTML = "";
+
     if (!snap.exists()) {
-      messagesEl.innerHTML = `<div class="muted center">No messages yet</div>`;
+      messagesEl.innerHTML = `<div class="center muted">No messages</div>`;
       return;
     }
+
     snap.forEach(m => {
       const d = m.val();
-      const wrapper = document.createElement("div");
-      wrapper.className = `message ${d.uid === currentUser.uid ? "mine" : ""}`;
+
+      const wrap = document.createElement("div");
+      wrap.className = "message " + (d.uid === currentUser.uid ? "mine" : "");
 
       const img = document.createElement("img");
-      img.src = d.photoURL || "";
-      img.alt = d.nickname || "user";
+      img.src = d.photoURL || DEFAULT_AVATAR;
+      img.className = "msg-avatar";
 
       const bubble = document.createElement("div");
       bubble.className = "bubble";
 
-      const nameDiv = document.createElement("div");
-      nameDiv.className = "msg-name";
-      nameDiv.textContent = d.nickname || "User";
+      const name = document.createElement("div");
+      name.className = "msg-name";
+      name.textContent = d.nickname;
 
-      const textDiv = document.createElement("div");
-      textDiv.textContent = d.text || "";
-      textDiv.style.whiteSpace = "pre-wrap";
+      const txt = document.createElement("div");
+      txt.textContent = d.text;
 
-      const timeDiv = document.createElement("div");
-      timeDiv.className = "msg-time";
-      timeDiv.textContent = d.time ? new Date(d.time).toLocaleString() : "";
+      const time = document.createElement("div");
+      time.className = "msg-time";
+      time.textContent = new Date(d.time).toLocaleTimeString();
 
-      bubble.appendChild(nameDiv);
-      bubble.appendChild(textDiv);
-      bubble.appendChild(timeDiv);
+      bubble.appendChild(name);
+      bubble.appendChild(txt);
+      bubble.appendChild(time);
 
-      wrapper.appendChild(img);
-      wrapper.appendChild(bubble);
+      wrap.appendChild(img);
+      wrap.appendChild(bubble);
 
-      messagesEl.appendChild(wrapper);
+      messagesEl.appendChild(wrap);
     });
+
     messagesEl.scrollTop = messagesEl.scrollHeight;
   });
 }
 
-// --- Send message ---
+// ------------------------ SEND MESSAGE ------------------------
 sendMsg.onclick = sendMessage;
-msgInput.addEventListener("keydown", e => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+msgInput.onkeydown = e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+};
+
 function sendMessage() {
   if (!currentUser || !activeRoom) return;
-  const t = msgInput.value.trim();
-  if (!t) return;
+  const text = msgInput.value.trim();
+  if (!text) return;
   msgInput.value = "";
+
   push(ref(db, `messages/${activeRoom}`), {
     uid: currentUser.uid,
-    nickname: currentUser.displayName || "User",
-    photoURL: currentUser.photoURL || "",
-    text: t,
+    nickname: userNameDisplay.innerText,
+    photoURL: userPhoto.src,
+    text,
     time: Date.now()
   });
 }
 
-// --- Helpers ---
+// ------------------------ CLEAR UI ------------------------
 function clearUI() {
+  messagesEl.innerHTML = `<div class="center muted">Select a room</div>`;
+  chatHeader.innerText = "No Room";
   roomListEl.innerHTML = "";
-  messagesEl.innerHTML = `<div class="muted center">Select a room to start chatting</div>`;
-  chatHeader.innerText = "No Room Selected";
   roomInfoEl.innerHTML = "";
-  noRooms.classList.remove("hidden");
 }
 
-// --- Copy room link ---
-window.copyRoomLink = () => {
-  const input = roomInfoEl.querySelector("input");
-  input.select();
-  document.execCommand("copy");
-  alert("Room link copied!");
+// ------------------------ PROFILE MODAL ------------------------
+// Already handled above (avatar, nickname, DOB)
+modalClose.onclick = () => profileModal.classList.remove("show");
+
+modalSaveProfile.onclick = async () => {
+  if (!currentUser) return;
+
+  const snap = await get(ref(db, `users/${currentUser.uid}`));
+  const data = snap.exists() ? snap.val() : {};
+  const now = Date.now();
+  const lastChange = data.lastUsernameChange || 0;
+  const diff = now - lastChange;
+
+  if (modalNickname.value !== data.displayName && diff < 14 * 24 * 60 * 60 * 1000) {
+    alert("You can change username only once every 14 days.");
+    return;
+  }
+
+  await update(ref(db, `users/${currentUser.uid}`), {
+    photoURL: modalPhoto.src,
+    displayName: modalNickname.value,
+    dob: modalDOB.value,
+    lastUsernameChange: (modalNickname.value !== data.displayName) ? now : lastChange
+  });
+
+  userPhoto.src = modalPhoto.src;
+  userNameDisplay.innerText = modalNickname.value;
+
+  profileModal.classList.remove("show");
+  alert("Profile updated!");
 };
