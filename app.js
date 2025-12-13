@@ -1,7 +1,7 @@
 // ------------------------ IMPORTS ------------------------
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { 
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged 
+  getAuth, signOut, onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { 
   getDatabase, ref, set, push, onValue, get, remove, update 
@@ -21,46 +21,35 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
-const provider = new GoogleAuthProvider();
+const DEFAULT_AVATAR = "https://i.ibb.co/7QpKsCX/default-avatar.png";
 
 // ------------------------ GLOBALS ------------------------
 let currentUser = null;
 let activeRoom = null;
-const DEFAULT_AVATAR = "https://i.ibb.co/7QpKsCX/default-avatar.png";
 
 // ------------------------ UI ELEMENTS ------------------------
-const loginScreen = document.getElementById("login-screen");
 const mainScreen = document.getElementById("main");
-
-const googleLoginBtn = document.getElementById("googleLogin");
 const btnLogout = document.getElementById("btnLogout");
-
 const userPhoto = document.getElementById("userPhoto");
 const userNameDisplay = document.getElementById("userNameDisplay");
 const userEmail = document.getElementById("userEmail");
 
 const btnShowCreate = document.getElementById("btnShowCreate");
 const btnShowJoin = document.getElementById("btnShowJoin");
-
 const createRoomSection = document.getElementById("createRoomSection");
 const joinRoomSection = document.getElementById("joinRoomSection");
-
 const roomNameCreate = document.getElementById("roomNameCreate");
 const roomPASScreate = document.getElementById("roomPASScreate");
 const btnCreate = document.getElementById("btnCreate");
-
 const roomIDjoin = document.getElementById("roomIDjoin");
 const roomPASSjoin = document.getElementById("roomPASSjoin");
 const btnJoin = document.getElementById("btnJoin");
-
 const roomListEl = document.getElementById("roomList");
 const noRooms = document.getElementById("noRooms");
-
 const chatHeader = document.getElementById("chatHeader");
 const messagesEl = document.getElementById("messages");
 const msgInput = document.getElementById("msgInput");
 const sendMsg = document.getElementById("sendMsg");
-
 const roomInfoEl = document.getElementById("roomInfo");
 
 const profileModal = document.getElementById("profileModal");
@@ -70,35 +59,78 @@ const modalDOB = document.getElementById("modalDOB");
 const modalSaveProfile = document.getElementById("modalSaveProfile");
 const modalClose = document.getElementById("modalClose");
 
-// ------------------------ LOGIN HANDLERS ------------------------
-googleLoginBtn.onclick = () => signInWithPopup(auth, provider);
-btnLogout.onclick = () => signOut(auth);
-
-// ------------------------ AUTH STATE CHANGE ------------------------
-onAuthStateChanged(auth, async user => {
-  if (user) {
-    currentUser = user;
-    loginScreen.style.display = "none";
-    mainScreen.style.display = "block";
-
-    await loadUserProfile(user.uid);
-    loadRooms();
-
-    // --- CHECK URL PARAMETERS FOR AUTO-JOIN ---
-    const params = new URLSearchParams(window.location.search);
-    const roomID = params.get("room");
-    const roomPASS = params.get("pass");
-    if (roomID) handleRoomLink(roomID, roomPASS);
-
-  } else {
-    currentUser = null;
-    loginScreen.style.display = "block";
-    mainScreen.style.display = "none";
-    clearUI();
-  }
+// ------------------------ LOGOUT ------------------------
+btnLogout.onclick = () => signOut(auth).then(() => {
+  window.location.href = "login.html";
 });
 
-// ------------------------ HANDLE ROOM LINK ------------------------
+// ------------------------ AUTH STATE ------------------------
+onAuthStateChanged(auth, async user => {
+  if (!user) {
+    window.location.href = "login.html";
+    return;
+  }
+  currentUser = user;
+  mainScreen.style.display = "block";
+  await loadUserProfile(user.uid);
+  loadRooms();
+  checkRoomLink();
+});
+
+// ------------------------ LOAD USER PROFILE ------------------------
+// ------------------------ LOAD USER PROFILE ------------------------
+async function loadUserProfile(uid) {
+  const userRef = ref(db, `users/${uid}`);
+  const snap = await get(userRef);
+
+  if (!snap.exists()) {
+    // CREATE USER ONCE
+    const newUser = {
+      uid,
+      email: currentUser.email,
+      username: "user" + uid.slice(0, 6), // initial username
+      nickname: "User",
+      displayName: "User",
+      photoURL: DEFAULT_AVATAR,
+      dob: "",
+      createdAt: Date.now(),
+      lastLogin: Date.now(),
+      lastUsernameChange: 0
+    };
+
+    await set(userRef, newUser);
+
+    // Update UI
+    userPhoto.src = newUser.photoURL;
+    userNameDisplay.innerText = newUser.nickname;
+    userEmail.innerText = newUser.email;
+    return;
+  }
+
+  const data = snap.val();
+
+  // Update UI
+  userPhoto.src = data.photoURL || DEFAULT_AVATAR;
+  userNameDisplay.innerText = data.nickname || data.displayName || "User";
+  userEmail.innerText = data.email || currentUser.email || "No email";
+
+  // SAFE update in DB (last login)
+  await update(userRef, { lastLogin: Date.now() });
+}
+
+
+
+
+
+
+// ------------------------ CHECK ROOM LINK ------------------------
+function checkRoomLink() {
+  const params = new URLSearchParams(window.location.search);
+  const roomID = params.get("room");
+  const roomPASS = params.get("pass");
+  if (roomID) handleRoomLink(roomID, roomPASS);
+}
+
 async function handleRoomLink(roomID, passFromURL) {
   const snap = await get(ref(db, `rooms/${roomID}`));
   if (!snap.exists()) return alert("Room not found");
@@ -116,41 +148,16 @@ async function handleRoomLink(roomID, passFromURL) {
   updateRoomInfo(roomID, pass, snap.val().chatName, snap.val().roomURL);
 }
 
-// ------------------------ LOAD USER PROFILE ------------------------
-async function loadUserProfile(uid) {
-  const snap = await get(ref(db, `users/${uid}`));
-  const data = snap.exists() ? snap.val() : {};
-
-  const nickname = data.displayName || currentUser.displayName || "User";
-  const photoURL = data.photoURL || currentUser.photoURL || DEFAULT_AVATAR;
-
-  userPhoto.src = photoURL;
-  userNameDisplay.innerText = nickname;
-  userEmail.innerText = currentUser.email;
-
-  await update(ref(db, `users/${uid}`), {
-    uid,
-    displayName: nickname,
-    photoURL,
-    email: currentUser.email,
-    lastLogin: Date.now()
-  });
-}
-
 // ------------------------ CREATE & JOIN ROOM ------------------------
 btnShowCreate.onclick = () => {
   createRoomSection.classList.toggle("hidden");
   joinRoomSection.classList.add("hidden");
 };
-
 btnShowJoin.onclick = () => {
   joinRoomSection.classList.toggle("hidden");
   createRoomSection.classList.add("hidden");
 };
-
-function randomRoomID() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
+function randomRoomID() { return Math.random().toString(36).substring(2,8).toUpperCase(); }
 
 btnCreate.onclick = async () => {
   const pass = roomPASScreate.value.trim();
@@ -161,11 +168,7 @@ btnCreate.onclick = async () => {
   const roomURL = `${location.origin}${location.pathname}?room=${id}&pass=${pass}`;
 
   await set(ref(db, `rooms/${id}`), {
-    pass,
-    chatName,
-    roomURL,
-    createdBy: currentUser.uid,
-    createdAt: Date.now()
+    pass, chatName, roomURL, createdBy: currentUser.uid, createdAt: Date.now()
   });
   await set(ref(db, `members/${id}/${currentUser.uid}`), true);
 
@@ -183,7 +186,6 @@ btnJoin.onclick = async () => {
   if (snap.val().pass !== pass) return alert("Wrong password");
 
   await set(ref(db, `members/${id}/${currentUser.uid}`), true);
-
   openRoom(id);
   updateRoomInfo(id, pass, snap.val().chatName, snap.val().roomURL);
 };
@@ -266,9 +268,7 @@ function showRoomMenu(e, roomID) {
   document.body.appendChild(menu);
 
   setTimeout(() => {
-    document.addEventListener("click", () => {
-      menu.remove();
-    }, { once: true });
+    document.addEventListener("click", () => menu.remove(), { once: true });
   }, 50);
 }
 
@@ -323,7 +323,6 @@ function listenMessages(roomID) {
 
     snap.forEach(m => {
       const d = m.val();
-
       const wrap = document.createElement("div");
       wrap.className = "message " + (d.uid === currentUser.uid ? "mine" : "");
 
@@ -351,7 +350,6 @@ function listenMessages(roomID) {
 
       wrap.appendChild(img);
       wrap.appendChild(bubble);
-
       messagesEl.appendChild(wrap);
     });
 
@@ -383,6 +381,36 @@ function sendMessage() {
   });
 }
 
+// ------------------------ PROFILE MODAL ------------------------
+modalClose.onclick = () => profileModal.classList.remove("show");
+
+// modalSaveProfile.onclick = async () => {
+//   if (!currentUser) return;
+
+//   const snap = await get(ref(db, `users/${currentUser.uid}`));
+//   const data = snap.exists() ? snap.val() : {};
+//   const now = Date.now();
+//   const lastChange = data.lastUsernameChange || 0;
+//   const diff = now - lastChange;
+
+//   if (modalNickname.value !== data.displayName && diff < 14 * 24 * 60 * 60 * 1000) {
+//     alert("You can change username only once every 14 days.");
+//     return;
+//   }
+
+//   await update(ref(db, `users/${currentUser.uid}`), {
+//     photoURL: modalPhoto.src,
+//     displayName: modalNickname.value,
+//     dob: modalDOB.value,
+//     lastUsernameChange: (modalNickname.value !== data.displayName) ? now : lastChange
+//   });
+
+//   userPhoto.src = modalPhoto.src;
+//   userNameDisplay.innerText = modalNickname.value;
+//   profileModal.classList.remove("show");
+//   alert("Profile updated!");
+// };
+
 // ------------------------ CLEAR UI ------------------------
 function clearUI() {
   messagesEl.innerHTML = `<div class="center muted">Select a room</div>`;
@@ -391,32 +419,79 @@ function clearUI() {
   roomInfoEl.innerHTML = "";
 }
 
-// ------------------------ PROFILE MODAL ------------------------
-modalClose.onclick = () => profileModal.classList.remove("show");
 
+
+// ------------------------ OPEN PROFILE MODAL ------------------------
+userPhoto.onclick = async () => {
+  if (!currentUser) return;
+
+  const snap = await get(ref(db, "users/" + currentUser.uid));
+  const data = snap.exists() ? snap.val() : {};
+
+  // Avatar
+  modalPhoto.src = data.photoURL || currentUser.photoURL || DEFAULT_AVATAR;
+
+  // Username (can change once every 14 days)
+  modalUsername.value = data.username || "user" + currentUser.uid.slice(0, 6);
+
+  // Nickname (editable anytime)
+  modalNickname.value = data.nickname || data.displayName || "User";
+
+  // DOB
+  modalDOB.value = data.dob || "";
+
+  // Avatar change
+  modalPhoto.onclick = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.click();
+
+    input.onchange = () => {
+      const file = input.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = e => modalPhoto.src = e.target.result;
+      reader.readAsDataURL(file);
+    };
+  };
+
+  profileModal.classList.add("show");
+};
+
+// ------------------------ SAVE PROFILE ------------------------
 modalSaveProfile.onclick = async () => {
   if (!currentUser) return;
 
   const snap = await get(ref(db, `users/${currentUser.uid}`));
   const data = snap.exists() ? snap.val() : {};
   const now = Date.now();
-  const lastChange = data.lastUsernameChange || 0;
-  const diff = now - lastChange;
 
-  if (modalNickname.value !== data.displayName && diff < 14 * 24 * 60 * 60 * 1000) {
+  // Username 14-day restriction
+  if (modalUsername.value.trim() !== data.username && (now - (data.lastUsernameChange || 0)) < 14*24*60*60*1000) {
     alert("You can change username only once every 14 days.");
     return;
   }
 
+  const newUsername = modalUsername.value.trim();
+  const newNickname = modalNickname.value.trim();
+
   await update(ref(db, `users/${currentUser.uid}`), {
-    photoURL: modalPhoto.src,
-    displayName: modalNickname.value,
+    username: newUsername,
+    displayName: newNickname,
+    nickname: newNickname,
     dob: modalDOB.value,
-    lastUsernameChange: (modalNickname.value !== data.displayName) ? now : lastChange
+    photoURL: modalPhoto.src,
+    lastUsernameChange: (newUsername !== data.username) ? now : data.lastUsernameChange || 0
   });
 
+  // Update UI
   userPhoto.src = modalPhoto.src;
-  userNameDisplay.innerText = modalNickname.value;
+  userNameDisplay.innerText = newNickname;
+  userEmail.innerText = currentUser.email || "No email";
+
   profileModal.classList.remove("show");
   alert("Profile updated!");
 };
+
