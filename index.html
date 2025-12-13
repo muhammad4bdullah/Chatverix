@@ -7,23 +7,13 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-  <!-- LOGIN SCREEN -->
-  <div id="login-screen" class="screen">
-    <div class="login-card">
-      <h1>WhatsChat</h1>
-      <p class="muted">Sign in to join rooms and chat with friends</p>
-      <button id="googleLogin" class="primary">Login with Google</button>
-      <small class="muted">You will be asked for Google permission</small>
-    </div>
-  </div>
-
   <!-- MAIN APP -->
-  <div id="main" class="hidden screen">
-
+  <div id="main" class="screen">
+    
     <!-- PROFILE BAR -->
     <div id="profileBar">
-      <img id="userPhoto" alt="avatar"/>
+      <img id="userPhoto" alt="avatar" />
+      
       <div class="profile-info">
         <div id="userNameDisplay" class="username">User</div>
         <div id="userEmail" class="muted small"></div>
@@ -35,7 +25,7 @@
 
     <!-- APP CONTAINER -->
     <div id="appContainer">
-
+      
       <!-- SIDEBAR -->
       <aside id="sidebar">
         <div class="sidebar-actions">
@@ -43,21 +33,23 @@
           <button id="btnShowJoin" class="small">→ Join Room</button>
         </div>
 
-        <!-- Create Room -->
         <div id="createRoomSection" class="panel hidden">
           <label>Room Name</label>
           <input id="roomNameCreate" placeholder="Optional room name">
+
           <label>Room password (numbers)</label>
           <input id="roomPASScreate" placeholder="e.g. 123456" inputmode="numeric">
+
           <button id="btnCreate" class="primary small">Create</button>
         </div>
 
-        <!-- Join Room -->
         <div id="joinRoomSection" class="panel hidden">
           <label>Room ID</label>
           <input id="roomIDjoin" placeholder="Room ID">
+
           <label>Room password</label>
           <input id="roomPASSjoin" placeholder="Password" inputmode="numeric">
+
           <button id="btnJoin" class="primary small">Join</button>
         </div>
 
@@ -70,7 +62,6 @@
       <!-- CHAT PANEL -->
       <section id="chat">
         <div id="chatHeader">No Room Selected</div>
-
         <div id="roomInfo"></div>
 
         <div id="messages" class="messages">
@@ -97,9 +88,17 @@
         <p>Click avatar to change</p>
       </div>
 
+      <!-- Hidden file input for avatar -->
+      <input type="file" id="avatarInput" accept="image/*" hidden>
+
       <div class="modal-field">
-        <label for="modalNickname">Nickname</label>
-        <input type="text" id="modalNickname" placeholder="Enter nickname">
+        <label>Username (unique, 14-day limit)</label>
+        <input id="modalUsername" type="text">
+      </div>
+
+      <div class="modal-field">
+        <label>Nickname (always editable)</label>
+        <input id="modalNickname" type="text">
       </div>
 
       <div class="modal-field">
