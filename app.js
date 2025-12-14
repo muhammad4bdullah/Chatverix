@@ -1,7 +1,9 @@
 // ------------------------ IMPORTS ------------------------
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getDatabase, ref, set, push, onValue, get, remove, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, push, onValue, get, remove, update, onDisconnect } 
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
 
 // ------------------------ FIREBASE INIT ------------------------
 const firebaseConfig = {
@@ -24,6 +26,8 @@ let currentUser = null;
 let activeRoom = localStorage.getItem("activeRoom") || null;
 let roomFilter = "all";
 let usersCache = {}; // Cache for user data to avoid re-fetching
+let myStatusRef = null;
+
 
 // ------------------------ UI ELEMENTS ------------------------
 const mainScreen = document.getElementById("main");
@@ -31,6 +35,8 @@ const btnLogout = document.getElementById("btnLogout");
 const userPhoto = document.getElementById("userPhoto");
 const userNameDisplay = document.getElementById("userNameDisplay");
 const userEmail = document.getElementById("userEmail");
+const myStatusDot = document.getElementById("userStatus");
+
 
 const btnShowCreate = document.getElementById("btnShowCreate");
 const btnShowJoin = document.getElementById("btnShowJoin");
@@ -57,56 +63,139 @@ const modalDOB = document.getElementById("modalDOB");
 const modalSaveProfile = document.getElementById("modalSaveProfile");
 const modalClose = document.getElementById("modalClose");
 const modalUsername = document.getElementById("modalUsername");
-const modalHeading = document.getElementById("modalHeading"); // new heading element
+const modalHeading = document.getElementById("modalHeading");
 
 const filterAllBtn = document.getElementById("filterAll");
 const filterCreatedBtn = document.getElementById("filterCreated");
 const filterJoinedBtn = document.getElementById("filterJoined");
 
+const typingIndicator = document.getElementById("typingIndicator");
+
+const imageViewer = document.getElementById("imageViewer");
+const imageViewerImg = document.getElementById("imageViewerImg");
+const imageViewerClose = document.getElementById("imageViewerClose");
+
+function openImageViewer(src) {
+  imageViewerImg.src = src;
+  imageViewer.classList.remove("hidden");
+}
+
+// Close on ❌ click
+imageViewerClose.onclick = () => {
+  imageViewer.classList.add("hidden");
+  imageViewerImg.src = "";
+};
+
+// Close on background click
+imageViewer.onclick = (e) => {
+  if (e.target === imageViewer) {
+    imageViewer.classList.add("hidden");
+    imageViewerImg.src = "";
+  }
+};
+
 // ------------------------ LOGOUT ------------------------
-btnLogout.onclick = () => signOut(auth).then(() => { window.location.href = "login.html"; });
+btnLogout.onclick = async () => {
+  if (myStatusRef) {
+    await set(myStatusRef, {
+      state: "offline",
+      lastChanged: Date.now()
+    });
+  }
+  await signOut(auth);
+  window.location.href = "login.html";
+};
 
 // ------------------------ AUTH STATE ------------------------
 onAuthStateChanged(auth, async user => {
-  if (!user) return window.location.href = "login.html";
+  if (!user) {
+    window.location.href = "login.html";
+    return;
+  }
+
   currentUser = user;
-  mainScreen.style.display = "block";
+
+  // ✅ SET USER ONLINE
+  setUserOnline(user.uid);
+
+  // show app
+  mainScreen.style.display = "flex";
+
+  // load profile data
   await loadUserProfile(user.uid);
+
+  // normal app flow (unchanged)
   loadRooms();
   checkRoomLink();
-  if (activeRoom) openRoom(activeRoom);
+
+  if (activeRoom) {
+    openRoom(activeRoom);
+  }
 });
+
+// ------------------------ USER PRESENCE ------------------------
+function setUserOnline(uid) {
+  myStatusRef = ref(db, `status/${uid}`);
+
+  // set online
+  set(myStatusRef, {
+    state: "online",
+    lastChanged: Date.now()
+  });
+
+  // auto set offline if tab closes / internet drops
+  onDisconnect(myStatusRef).set({
+    state: "offline",
+    lastChanged: Date.now()
+  });
+
+  // update my own UI dot
+  updateStatusDot(myStatusDot, "online");
+}
+
+function updateStatusDot(dotEl, state) {
+  if (!dotEl) return;
+  dotEl.classList.remove("online", "offline");
+  dotEl.classList.add(state);
+}
+
 
 // ------------------------ LOAD USER PROFILE ------------------------
 async function loadUserProfile(uid) {
   const userRef = ref(db, `users/${uid}`);
   const snap = await get(userRef);
 
-  if (!snap.exists()) {
-    const newUser = {
-      uid,
-      email: currentUser.email,
-      username: "user" + uid.slice(0, 6),
-      nickname: "User",
-      displayName: "User",
-      photoURL: DEFAULT_AVATAR,
-      dob: "",
-      createdAt: Date.now(),
-      lastLogin: Date.now(),
-      lastUsernameChange: 0
-    };
-    await set(userRef, newUser);
-    usersCache[uid] = newUser;
-  } else {
-    usersCache[uid] = snap.val();
-    await update(userRef, { lastLogin: Date.now() });
-  }
+  let data;
 
-  const data = usersCache[uid];
+  if (!snap.exists()) {
+  // first login - already set
+} else {
+  data = snap.val();
+  let needsUpdate = false;
+  if (!data.username) { data.username = "user" + uid.slice(0, 6); needsUpdate = true; }
+  if (!data.nickname) { data.nickname = "User"; needsUpdate = true; }
+  if (!data.photoURL) { data.photoURL = DEFAULT_AVATAR; needsUpdate = true; }
+
+  if (needsUpdate) await update(userRef, {
+    username: data.username,
+    nickname: data.nickname,
+    photoURL: data.photoURL
+  });
+
+  await update(userRef, { lastLogin: Date.now() });
+}
+
+  // Cache user
+  usersCache[uid] = data;
+
+  // Update UI
   userPhoto.src = data.photoURL || DEFAULT_AVATAR;
   userNameDisplay.innerText = data.nickname || data.displayName || "User";
   userEmail.innerText = data.email || currentUser.email || "No email";
 }
+
+
+
 
 // ------------------------ CHECK ROOM LINK ------------------------
 function checkRoomLink() {
@@ -133,11 +222,16 @@ async function handleRoomLink(roomID, passFromURL) {
 btnShowCreate.onclick = () => { createRoomSection.classList.toggle("hidden"); joinRoomSection.classList.add("hidden"); };
 btnShowJoin.onclick = () => { joinRoomSection.classList.toggle("hidden"); createRoomSection.classList.add("hidden"); };
 
-function randomRoomID() { return Math.random().toString(36).substring(2,8).toUpperCase(); }
+function randomRoomID() { 
+    return Math.floor(10000000 + Math.random() * 90000000).toString(); 
+}
+
 
 btnCreate.onclick = async () => {
   const pass = roomPASScreate.value.trim();
-  if (!/^\d{6}$/.test(pass)) return alert("Password must be 6 digits");
+ if (!/^[a-z0-9]{6,12}$/.test(pass)) 
+    return alert("Password must be 6-12 characters, lowercase letters and digits only");
+
 
   const id = randomRoomID();
   const chatName = roomNameCreate.value.trim() || id;
@@ -145,6 +239,8 @@ btnCreate.onclick = async () => {
 
   await set(ref(db, `rooms/${id}`), { pass, chatName, roomURL, createdBy: currentUser.uid, createdAt: Date.now() });
   await set(ref(db, `members/${id}/${currentUser.uid}`), true);
+  pushSystemMessage(id, `<strong>${userNameDisplay.innerText}</strong> has joined the room`);
+
 
   loadRooms();
   openRoom(id);
@@ -160,6 +256,8 @@ btnJoin.onclick = async () => {
 
   await set(ref(db, `members/${id}/${currentUser.uid}`), true);
   openRoom(id);
+  pushSystemMessage(id, `<strong>${userNameDisplay.innerText}</strong> has joined the room`);
+
   updateRoomInfo(id, pass, snap.val().chatName, snap.val().roomURL);
 };
 
@@ -233,6 +331,29 @@ function loadRooms() {
   });
 }
 
+// ---------------- ROOM SEARCH ----------------
+const roomSearchInput = document.getElementById("roomSearchInput");
+
+roomSearchInput.addEventListener("input", () => {
+  const query = roomSearchInput.value.trim().toLowerCase();
+
+  const roomRows = Array.from(roomListEl.children).filter(c => c.classList.contains("room-row"));
+  
+  roomRows.forEach(row => {
+    const roomName = row.querySelector("button")?.textContent.toLowerCase() || "";
+    if (roomName.includes(query)) {
+      row.style.display = "flex";
+    } else {
+      row.style.display = "none";
+    }
+  });
+
+  // Show "No rooms found" if none match
+  const anyVisible = roomRows.some(row => row.style.display !== "none");
+  noRooms.textContent = anyVisible ? "No rooms yet — create or join one." : "No matching rooms found.";
+});
+
+
 // ------------------------ THREE DOTS MENU ------------------------
 function showRoomMenu(e, roomID, isCreator) {
   const old = document.getElementById("roomMenu");
@@ -248,10 +369,34 @@ function showRoomMenu(e, roomID, isCreator) {
   menu.innerHTML = `
     ${isCreator ? `<div onclick="renameRoom('${roomID}')">Rename</div>` : ""}
     ${isCreator ? `<div onclick="deleteRoom('${roomID}')">Delete</div>` : ""}
+    ${!isCreator ? `<div onclick="leaveRoom('${roomID}')">Leave Room</div>` : ""}
   `;
   document.body.appendChild(menu);
   setTimeout(() => { document.addEventListener("click", () => menu.remove(), { once: true }); }, 50);
 }
+
+window.leaveRoom = async function(roomID) {
+  if (!confirm("Do you want to leave this room?")) return;
+
+  // push system message before leaving
+  pushSystemMessage(roomID, `<strong>${userNameDisplay.innerText}</strong> has left the room`);
+
+  // remove this user from the members of the room
+  await remove(ref(db, `members/${roomID}/${currentUser.uid}`));
+
+  // If user was in this active room, clear UI
+  if (activeRoom === roomID) {
+    activeRoom = null;
+    localStorage.removeItem("activeRoom");
+    clearUI();
+  }
+
+  // reload the room list
+  loadRooms();
+
+  alert("You have left the room.");
+};
+
 
 // ------------------------ RENAME & DELETE ------------------------
 window.renameRoom = async (roomID) => {
@@ -284,6 +429,27 @@ window.deleteRoom = async (roomID) => {
   loadRooms();
 };
 
+// Make a function to push system messages to the chat
+window.pushSystemMessage = function(roomID, text) {
+  if (!roomID) return;
+  push(ref(db, `messages/${roomID}`), {
+    type: "system",   // mark this as a system message
+    text,
+    time: Date.now()
+  });
+}
+
+
+function pushSystemMessage(roomID, text) {
+  if (!roomID) return;
+  push(ref(db, `messages/${roomID}`), {
+    type: "system",   // flag for system messages
+    text,
+    time: Date.now()
+  });
+}
+
+
 // ------------------------ OPEN ROOM ------------------------
 window.openRoom = async function(roomID) {
   activeRoom = roomID;
@@ -296,43 +462,101 @@ window.openRoom = async function(roomID) {
   chatHeader.innerText = roomData.chatName;
   updateRoomInfo(roomID, roomData.pass, roomData.chatName, roomData.roomURL);
 
-  listenMessages(roomID);
+  listenMessages(roomID);  
+  listenTyping(roomID);    
 };
 
 // ------------------------ LISTEN MESSAGES ------------------------
 function listenMessages(roomID) {
   onValue(ref(db, `messages/${roomID}`), snap => {
-    messagesEl.innerHTML = "";
-    if (!snap.exists()) { messagesEl.innerHTML = `<div class="center muted">No messages</div>`; return; }
+    messagesEl.innerHTML = ""; // clear previous messages
+
+    if (!snap.exists()) {
+      messagesEl.innerHTML = `<div class="center muted">No messages</div>`;
+      return;
+    }
 
     snap.forEach(m => {
       const d = m.val();
+
+      // SYSTEM MESSAGE
+      if (d.type === "system") {
+        const sysMsg = document.createElement("div");
+        sysMsg.className = "system-message";
+        sysMsg.innerHTML = d.text;
+        messagesEl.appendChild(sysMsg);
+        return;
+      }
+
+      // NORMAL MESSAGE
       const wrap = document.createElement("div");
       wrap.className = "message " + (d.uid === currentUser.uid ? "mine" : "");
 
-      const img = document.createElement("img");
-      img.src = d.photoURL || DEFAULT_AVATAR;
-      img.className = "msg-avatar";
-      img.onclick = () => openProfileModal(d.uid, d.uid === currentUser.uid); // avatar click
+      // AVATAR
+      const avatar = document.createElement("img");
+      avatar.src = d.photoURL || DEFAULT_AVATAR;
+      avatar.className = "msg-avatar";
+      avatar.onclick = () => openProfileModal(d.uid, d.uid === currentUser.uid);
 
+      // BUBBLE
       const bubble = document.createElement("div");
       bubble.className = "bubble";
 
+      // NAME
       const name = document.createElement("div");
       name.className = "msg-name";
-      name.textContent = d.nickname;
+      name.textContent = d.nickname || "User";
+      bubble.appendChild(name);
 
-      const txt = document.createElement("div");
-      txt.textContent = d.text;
+      // MESSAGE CONTENT
+      if (d.type === "image") {
+        const imgEl = document.createElement("img");
+        imgEl.src = d.text;
+        imgEl.className = "chat-image";
+        imgEl.style.cursor = "pointer";
+        imgEl.onclick = (e) => {
+          e.preventDefault();
+          openImageViewer(d.text);
+        };
+        bubble.appendChild(imgEl);
 
+      } else if (d.type === "link") {
+        const linkEl = document.createElement("a");
+        linkEl.href = d.text;
+        linkEl.textContent = d.text;
+        linkEl.target = "_blank";
+        linkEl.rel = "noopener noreferrer";
+        linkEl.className = "chat-link";
+        bubble.appendChild(linkEl);
+
+      } else if (d.type === "file") {
+        const doc = document.createElement("a");
+        doc.href = "#"; // or actual download URL if available
+        doc.className = "chat-document";
+        doc.innerHTML = `
+          <div class="doc-icon">📄</div>
+          <div class="doc-info">
+            <div class="doc-name">${d.text}</div>
+            <div class="doc-size">Document</div>
+          </div>
+        `;
+        bubble.appendChild(doc);
+
+      } else {
+        // normal text
+        const textEl = document.createElement("div");
+        textEl.textContent = d.text;
+        bubble.appendChild(textEl);
+      }
+
+      // TIME
       const time = document.createElement("div");
       time.className = "msg-time";
       time.textContent = new Date(d.time).toLocaleTimeString();
-
-      bubble.appendChild(name);
-      bubble.appendChild(txt);
       bubble.appendChild(time);
-      wrap.appendChild(img);
+
+      // APPEND
+      wrap.appendChild(avatar);
       wrap.appendChild(bubble);
       messagesEl.appendChild(wrap);
     });
@@ -340,6 +564,7 @@ function listenMessages(roomID) {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   });
 }
+
 
 // ------------------------ SEND MESSAGE ------------------------
 sendMsg.onclick = sendMessage;
@@ -358,12 +583,13 @@ function sendMessage() {
     text,
     time: Date.now()
   });
+
+  const userTypingRef = ref(db, `typing/${activeRoom}/${currentUser.uid}`);
+  remove(userTypingRef);
 }
 
 // ------------------------ PROFILE MODAL ------------------------
 modalClose.onclick = () => profileModal.classList.remove("show");
-
-// own avatar click
 userPhoto.onclick = async () => openProfileModal(currentUser.uid, true);
 
 async function openProfileModal(uid, editable) {
@@ -374,58 +600,43 @@ async function openProfileModal(uid, editable) {
     usersCache[uid] = data;
   }
 
-  // Populate modal
   modalPhoto.src = data.photoURL || DEFAULT_AVATAR;
   modalUsername.value = data.username || "user" + uid.slice(0,6);
   modalNickname.value = data.nickname || "User";
   modalDOB.value = data.dob || "";
 
-  // Heading
   modalHeading.innerText = editable ? "Edit Profile" : "View Profile";
-
-  // Enable/disable fields
   modalUsername.disabled = !editable;
   modalNickname.disabled = !editable;
   modalDOB.disabled = !editable;
-
-  // Save button & instructions
   modalSaveProfile.style.display = editable ? "block" : "none";
   document.getElementById("modalInstructions").style.display = editable ? "block" : "none";
-
-  // Avatar click
   modalPhoto.style.cursor = editable ? "pointer" : "default";
   modalPhoto.onclick = editable ? () => avatarInput.click() : null;
 
-  // Show modal
+  // listen to user's online/offline status
+const modalStatusDot = document.getElementById("modalStatus");
+const statusRef = ref(db, `status/${uid}`);
+
+onValue(statusRef, snap => {
+  const state = snap.exists() ? snap.val().state : "offline";
+  updateStatusDot(modalStatusDot, state);
+});
+
   profileModal.classList.add("show");
 }
 
-
-// ---------- AVATAR PICKER LOGIC ----------
+// ---------- AVATAR PICKER ----------
 const avatarInput = document.getElementById("avatarInput");
-
-// click avatar → open file chooser
-modalPhoto.onclick = () => {
-  avatarInput.click();
-};
-
-// file selected → preview
 avatarInput.onchange = () => {
   const file = avatarInput.files[0];
   if (!file) return;
-
-  if (!file.type.startsWith("image/")) {
-    alert("Please choose an image file");
-    return;
-  }
-
+  if (!file.type.startsWith("image/")) { alert("Please choose an image file"); return; }
   const reader = new FileReader();
-  reader.onload = () => {
-    modalPhoto.src = reader.result;
-  };
+  reader.onload = () => { modalPhoto.src = reader.result; };
   reader.readAsDataURL(file);
 };
-
+modalPhoto.onclick = () => avatarInput.click();
 
 // ------------------------ SAVE PROFILE ------------------------
 modalSaveProfile.onclick = async () => {
@@ -434,8 +645,15 @@ modalSaveProfile.onclick = async () => {
   const data = snap.exists() ? snap.val() : {};
   const now = Date.now();
 
+  // Username: 14 days limit
   if (modalUsername.value.trim() !== data.username && (now - (data.lastUsernameChange || 0)) < 14*24*60*60*1000) {
     alert("You can change username only once every 14 days.");
+    return;
+  }
+
+  // Nickname: 3 days limit
+  if (modalNickname.value.trim() !== data.nickname && (now - (data.lastNicknameChange || 0)) < 3*24*60*60*1000) {
+    alert("You can change nickname only once every 3 days.");
     return;
   }
 
@@ -448,7 +666,8 @@ modalSaveProfile.onclick = async () => {
     nickname: newNickname,
     dob: modalDOB.value,
     photoURL: modalPhoto.src,
-    lastUsernameChange: (newUsername !== data.username) ? now : data.lastUsernameChange || 0
+    lastUsernameChange: (newUsername !== data.username) ? now : data.lastUsernameChange || 0,
+    lastNicknameChange: (newNickname !== data.nickname) ? now : data.lastNicknameChange || 0
   });
 
   usersCache[currentUser.uid] = {
@@ -458,30 +677,32 @@ modalSaveProfile.onclick = async () => {
     displayName: newNickname,
     photoURL: modalPhoto.src,
     dob: modalDOB.value,
-    lastUsernameChange: data.lastUsernameChange
+    lastUsernameChange: (newUsername !== data.username) ? now : data.lastUsernameChange || 0,
+    lastNicknameChange: (newNickname !== data.nickname) ? now : data.lastNicknameChange || 0
   };
 
   userPhoto.src = modalPhoto.src;
   userNameDisplay.innerText = newNickname;
 
-  // Update messages in active room only
   if (activeRoom) {
-    onValue(ref(db, `messages/${activeRoom}`), snap => {
-      snap.forEach(async m => {
-        const msgData = m.val();
-        if (msgData.uid === currentUser.uid) {
-          await update(ref(db, `messages/${activeRoom}/${m.key}`), {
-            nickname: newNickname,
-            photoURL: modalPhoto.src
-          });
-        }
-      });
-    }, { onlyOnce: true });
-  }
+  onValue(ref(db, `messages/${activeRoom}`), snap => {
+    snap.forEach(async m => {
+      const msgData = m.val();
+      if (msgData.uid === currentUser.uid) {
+        await update(ref(db, `messages/${activeRoom}/${m.key}`), {
+          nickname: newNickname,
+          photoURL: modalPhoto.src
+        });
+      }
+    });
+  }, { onlyOnce: true });
+}
+
 
   profileModal.classList.remove("show");
   alert("Profile updated!");
 };
+
 
 // ------------------------ CLEAR UI ------------------------
 function clearUI() {
@@ -491,7 +712,7 @@ function clearUI() {
   roomInfoEl.innerHTML = "";
 }
 
-// ------------------------ KEEP ROOM INFO BAR AFTER REFRESH ------------------------
+// ------------------------ KEEP ROOM AFTER REFRESH ------------------------
 window.addEventListener("load", async () => {
   if (!activeRoom) return;
   const snap = await get(ref(db, `rooms/${activeRoom}`));
@@ -499,24 +720,13 @@ window.addEventListener("load", async () => {
   openRoom(activeRoom);
 });
 
-// stop clicks inside modal from closing it
-profileModal.querySelector(".modal-content")?.addEventListener("click", e => {
-  e.stopPropagation();
-});
-
-// clicking outside closes modal
-profileModal.addEventListener("click", () => {
-  profileModal.classList.remove("show");
-});
-
-
+profileModal.querySelector(".modal-content")?.addEventListener("click", e => e.stopPropagation());
+profileModal.addEventListener("click", () => profileModal.classList.remove("show"));
 
 // ------------------------ TYPING INDICATOR ------------------------
-const typingIndicator = document.getElementById("typingIndicator");
 let typingTimeout = null;
-let typingRef = null; // current typing listener reference
+let typingListener = null;
 
-// Emit typing status to Firebase
 msgInput.addEventListener("input", () => {
   if (!activeRoom || !currentUser) return;
 
@@ -524,67 +734,32 @@ msgInput.addEventListener("input", () => {
   set(userTypingRef, true);
 
   if (typingTimeout) clearTimeout(typingTimeout);
-
-  // Remove typing after 1.5s of inactivity
   typingTimeout = setTimeout(() => remove(userTypingRef), 1500);
 });
 
-// Remove typing indicator immediately when user sends a message
-window.sendMessage = async function(messageText) {
-  if (!activeRoom || !currentUser || !messageText.trim()) return;
-
-  const messagesRef = ref(db, `messages/${activeRoom}`);
-  const newMsgRef = push(messagesRef);
-  await set(newMsgRef, {
-    sender: currentUser.uid,
-    text: messageText,
-    time: Date.now()
-  });
-
-  // Remove typing status immediately
-  const userTypingRef = ref(db, `typing/${activeRoom}/${currentUser.uid}`);
-  remove(userTypingRef);
-  msgInput.value = ""; // clear input
-};
-
-// Function to listen for typing users in the current room
 function listenTyping(roomID) {
-  // Remove previous listener if exists
-  if (typingRef) typingRef.off(); 
+  if (typingListener) typingListener();
 
-  typingRef = ref(db, `typing/${roomID}`);
-  onValue(typingRef, snap => {
-    // Clear indicator if no one is typing
-    if (!snap.exists()) {
-      typingIndicator.classList.add("hidden");
-      typingIndicator.innerHTML = "";
-      return;
-    }
+  const refTyping = ref(db, `typing/${roomID}`);
+  typingListener = onValue(refTyping, snap => {
+    typingIndicator.innerHTML = "";
+    if (!snap.exists()) { typingIndicator.classList.remove("show"); return; }
 
     const typingUsers = [];
-    snap.forEach(child => {
-      if (child.key !== currentUser.uid) typingUsers.push(child.key);
-    });
+    snap.forEach(child => { if (child.key !== currentUser.uid) typingUsers.push(child.key); });
 
-    if (typingUsers.length === 0) {
-      typingIndicator.classList.add("hidden");
-      typingIndicator.innerHTML = "";
-      return;
-    }
+    if (typingUsers.length === 0) { typingIndicator.classList.remove("show"); return; }
 
-    typingIndicator.classList.remove("hidden");
-    typingIndicator.innerHTML = "";
+    typingIndicator.classList.add("show");
+    typingIndicator.style.display = "flex";
 
-    // Show only the first typing user
     const uid = typingUsers[0];
     const user = usersCache[uid] || { photoURL: DEFAULT_AVATAR, nickname: "User" };
 
-    // Avatar
     const avatar = document.createElement("img");
-    avatar.src = user.photoURL || DEFAULT_AVATAR;
+    avatar.src = user.photoURL;
     avatar.className = "typing-avatar";
 
-    // Animated dots
     const dots = document.createElement("div");
     dots.className = "typing-dots";
     dots.innerHTML = `<span class="dot"></span><span class="dot"></span><span class="dot"></span>`;
@@ -592,11 +767,98 @@ function listenTyping(roomID) {
     typingIndicator.appendChild(avatar);
     typingIndicator.appendChild(dots);
 
-    // Place typingIndicator at the bottom of messages
-    const messagesContainer = document.querySelector(".messages");
-    messagesContainer.appendChild(typingIndicator);
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    messagesEl.appendChild(typingIndicator);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
   });
 }
+ 
 
+// ====================== ATTACHMENT BUTTON ======================
+const attachmentBtn = document.getElementById("attachmentBtn");
+const attachmentMenu = document.getElementById("attachmentMenu");
+const imageBtn = document.getElementById("imageBtn");
+const documentBtn = document.getElementById("documentBtn");
+const linkBtn = document.getElementById("linkBtn");
 
+// Hidden file input for uploads
+const attachmentFileInput = document.createElement("input");
+attachmentFileInput.type = "file";
+attachmentFileInput.style.display = "none";
+document.body.appendChild(attachmentFileInput);
+
+// ------------------ TOGGLE ATTACHMENT MENU ------------------
+attachmentBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  attachmentMenu.classList.toggle("show"); // toggle visibility
+});
+
+// Hide menu when clicking outside
+document.addEventListener("click", (e) => {
+  if (!attachmentMenu.contains(e.target) && e.target !== attachmentBtn) {
+    attachmentMenu.classList.remove("show");
+  }
+});
+
+// ------------------ IMAGE UPLOAD ------------------
+imageBtn.addEventListener("click", () => {
+  attachmentFileInput.accept = "image/*";
+  attachmentFileInput.click();
+  attachmentMenu.classList.remove("show");
+});
+
+// ------------------ DOCUMENT UPLOAD ------------------
+documentBtn.addEventListener("click", () => {
+  attachmentFileInput.accept = "*/*";
+  attachmentFileInput.click();
+  attachmentMenu.classList.remove("show");
+});
+
+// ------------------ LINK MESSAGE ------------------
+linkBtn.addEventListener("click", () => {
+  attachmentMenu.classList.remove("show");
+  const url = prompt("Paste the link here:");
+  if (!url) return;
+
+  push(ref(db, `messages/${activeRoom}`), {
+    uid: currentUser.uid,
+    nickname: userNameDisplay.innerText,
+    photoURL: userPhoto.src,
+    text: url,
+    type: "link",
+    time: Date.now()
+  });
+});
+
+// ------------------ HANDLE FILE SELECTION ------------------
+attachmentFileInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (file.type.startsWith("image/")) {
+    // Convert image to base64 and push
+    const reader = new FileReader();
+    reader.onload = () => {
+      push(ref(db, `messages/${activeRoom}`), {
+        uid: currentUser.uid,
+        nickname: userNameDisplay.innerText,
+        photoURL: userPhoto.src,
+        text: reader.result,
+        type: "image",
+        time: Date.now()
+      });
+    };
+    reader.readAsDataURL(file);
+  } else {
+    // Push generic file
+    push(ref(db, `messages/${activeRoom}`), {
+      uid: currentUser.uid,
+      nickname: userNameDisplay.innerText,
+      photoURL: userPhoto.src,
+      text: file.name,
+      type: "file",
+      time: Date.now()
+    });
+  }
+
+  attachmentFileInput.value = ""; // reset input
+});
