@@ -532,12 +532,12 @@ msgInput.addEventListener("input", () => {
 // Function to listen for typing users in the current room
 function listenTyping(roomID) {
   // Remove previous listener if exists
-  if (typingRef) typingRef.off(); 
+  if (typingRef) typingRef.off();
 
   typingRef = ref(db, `typing/${roomID}`);
   onValue(typingRef, snap => {
     if (!snap.exists()) {
-      typingIndicator.classList.add("hidden");
+      typingIndicator.classList.remove("show"); // hide
       typingIndicator.innerHTML = "";
       return;
     }
@@ -548,12 +548,12 @@ function listenTyping(roomID) {
     });
 
     if (typingUsers.length === 0) {
-      typingIndicator.classList.add("hidden");
+      typingIndicator.classList.remove("show"); // hide
       typingIndicator.innerHTML = "";
       return;
     }
 
-    typingIndicator.classList.remove("hidden");
+    typingIndicator.classList.add("show"); // show
     typingIndicator.innerHTML = "";
 
     // Show only the first typing user
@@ -586,5 +586,5 @@ window.openRoom = async function(roomID) {
   updateRoomInfo(roomID, roomData.pass, roomData.chatName, roomData.roomURL);
 
   listenMessages(roomID);
-  listenTyping(roomID); // ✅ Add this to listen for typing in the current room
+  listenTyping(roomID); // ✅ listen for typing in the current room
 };
