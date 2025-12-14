@@ -1,11 +1,7 @@
 // ------------------------ IMPORTS ------------------------
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { 
-  getAuth, signOut, onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { 
-  getDatabase, ref, set, push, onValue, get, remove, update 
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDatabase, ref, set, push, onValue, get, remove, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 // ------------------------ FIREBASE INIT ------------------------
 const firebaseConfig = {
@@ -25,7 +21,9 @@ const DEFAULT_AVATAR = "https://i.ibb.co/7QpKsCX/default-avatar.png";
 
 // ------------------------ GLOBALS ------------------------
 let currentUser = null;
-let activeRoom = null;
+let activeRoom = localStorage.getItem("activeRoom") || null;
+let roomFilter = "all";
+let usersCache = {}; // Cache for user data to avoid re-fetching
 
 // ------------------------ UI ELEMENTS ------------------------
 const mainScreen = document.getElementById("main");
@@ -58,37 +56,37 @@ const modalNickname = document.getElementById("modalNickname");
 const modalDOB = document.getElementById("modalDOB");
 const modalSaveProfile = document.getElementById("modalSaveProfile");
 const modalClose = document.getElementById("modalClose");
+const modalUsername = document.getElementById("modalUsername");
+const modalHeading = document.getElementById("modalHeading"); // new heading element
+
+const filterAllBtn = document.getElementById("filterAll");
+const filterCreatedBtn = document.getElementById("filterCreated");
+const filterJoinedBtn = document.getElementById("filterJoined");
 
 // ------------------------ LOGOUT ------------------------
-btnLogout.onclick = () => signOut(auth).then(() => {
-  window.location.href = "login.html";
-});
+btnLogout.onclick = () => signOut(auth).then(() => { window.location.href = "login.html"; });
 
 // ------------------------ AUTH STATE ------------------------
 onAuthStateChanged(auth, async user => {
-  if (!user) {
-    window.location.href = "login.html";
-    return;
-  }
+  if (!user) return window.location.href = "login.html";
   currentUser = user;
   mainScreen.style.display = "block";
   await loadUserProfile(user.uid);
   loadRooms();
   checkRoomLink();
+  if (activeRoom) openRoom(activeRoom);
 });
 
-// ------------------------ LOAD USER PROFILE ------------------------
 // ------------------------ LOAD USER PROFILE ------------------------
 async function loadUserProfile(uid) {
   const userRef = ref(db, `users/${uid}`);
   const snap = await get(userRef);
 
   if (!snap.exists()) {
-    // CREATE USER ONCE
     const newUser = {
       uid,
       email: currentUser.email,
-      username: "user" + uid.slice(0, 6), // initial username
+      username: "user" + uid.slice(0, 6),
       nickname: "User",
       displayName: "User",
       photoURL: DEFAULT_AVATAR,
@@ -97,31 +95,18 @@ async function loadUserProfile(uid) {
       lastLogin: Date.now(),
       lastUsernameChange: 0
     };
-
     await set(userRef, newUser);
-
-    // Update UI
-    userPhoto.src = newUser.photoURL;
-    userNameDisplay.innerText = newUser.nickname;
-    userEmail.innerText = newUser.email;
-    return;
+    usersCache[uid] = newUser;
+  } else {
+    usersCache[uid] = snap.val();
+    await update(userRef, { lastLogin: Date.now() });
   }
 
-  const data = snap.val();
-
-  // Update UI
+  const data = usersCache[uid];
   userPhoto.src = data.photoURL || DEFAULT_AVATAR;
   userNameDisplay.innerText = data.nickname || data.displayName || "User";
   userEmail.innerText = data.email || currentUser.email || "No email";
-
-  // SAFE update in DB (last login)
-  await update(userRef, { lastLogin: Date.now() });
 }
-
-
-
-
-
 
 // ------------------------ CHECK ROOM LINK ------------------------
 function checkRoomLink() {
@@ -135,12 +120,8 @@ async function handleRoomLink(roomID, passFromURL) {
   const snap = await get(ref(db, `rooms/${roomID}`));
   if (!snap.exists()) return alert("Room not found");
 
-  let pass = passFromURL;
-  if (!pass) {
-    pass = prompt("Enter room password to join:");
-    if (!pass) return;
-  }
-
+  let pass = passFromURL || prompt("Enter room password to join:");
+  if (!pass) return;
   if (snap.val().pass !== pass) return alert("Wrong password");
 
   await set(ref(db, `members/${roomID}/${currentUser.uid}`), true);
@@ -149,14 +130,9 @@ async function handleRoomLink(roomID, passFromURL) {
 }
 
 // ------------------------ CREATE & JOIN ROOM ------------------------
-btnShowCreate.onclick = () => {
-  createRoomSection.classList.toggle("hidden");
-  joinRoomSection.classList.add("hidden");
-};
-btnShowJoin.onclick = () => {
-  joinRoomSection.classList.toggle("hidden");
-  createRoomSection.classList.add("hidden");
-};
+btnShowCreate.onclick = () => { createRoomSection.classList.toggle("hidden"); joinRoomSection.classList.add("hidden"); };
+btnShowJoin.onclick = () => { joinRoomSection.classList.toggle("hidden"); createRoomSection.classList.add("hidden"); };
+
 function randomRoomID() { return Math.random().toString(36).substring(2,8).toUpperCase(); }
 
 btnCreate.onclick = async () => {
@@ -167,9 +143,7 @@ btnCreate.onclick = async () => {
   const chatName = roomNameCreate.value.trim() || id;
   const roomURL = `${location.origin}${location.pathname}?room=${id}&pass=${pass}`;
 
-  await set(ref(db, `rooms/${id}`), {
-    pass, chatName, roomURL, createdBy: currentUser.uid, createdAt: Date.now()
-  });
+  await set(ref(db, `rooms/${id}`), { pass, chatName, roomURL, createdBy: currentUser.uid, createdAt: Date.now() });
   await set(ref(db, `members/${id}/${currentUser.uid}`), true);
 
   loadRooms();
@@ -180,7 +154,6 @@ btnCreate.onclick = async () => {
 btnJoin.onclick = async () => {
   const id = roomIDjoin.value.trim().toUpperCase();
   const pass = roomPASSjoin.value.trim();
-
   const snap = await get(ref(db, `rooms/${id}`));
   if (!snap.exists()) return alert("Room not found");
   if (snap.val().pass !== pass) return alert("Wrong password");
@@ -200,55 +173,68 @@ function updateRoomInfo(id, pass, name, url) {
       <input value="${url}" readonly style="width:200px;">
       <button onclick="copyRoomLink()">Copy</button>
     </div>`;
+  localStorage.setItem("activeRoom", id);
 }
-
 window.copyRoomLink = () => {
   const box = roomInfoEl.querySelector("input");
   if (box) navigator.clipboard.writeText(box.value).then(() => alert("Copied!"));
 };
 
+// ------------------------ FILTER BUTTONS ------------------------
+filterAllBtn.onclick = () => { roomFilter = "all"; updateFilterButtons(); loadRooms(); };
+filterCreatedBtn.onclick = () => { roomFilter = "created"; updateFilterButtons(); loadRooms(); };
+filterJoinedBtn.onclick = () => { roomFilter = "joined"; updateFilterButtons(); loadRooms(); };
+
+function updateFilterButtons() {
+  [filterAllBtn, filterCreatedBtn, filterJoinedBtn].forEach(b => b.classList.remove("active"));
+  if (roomFilter === "all") filterAllBtn.classList.add("active");
+  if (roomFilter === "created") filterCreatedBtn.classList.add("active");
+  if (roomFilter === "joined") filterJoinedBtn.classList.add("active");
+}
+
 // ------------------------ ROOM LIST ------------------------
 function loadRooms() {
-  onValue(ref(db, "members"), snap => {
+  onValue(ref(db, "members"), async snap => {
     roomListEl.innerHTML = "";
     let found = false;
+    const rooms = [];
+    snap.forEach(roomSnap => { if (roomSnap.child(currentUser.uid).exists()) rooms.push(roomSnap.key); });
+    if (rooms.length === 0) { noRooms.classList.remove("hidden"); return; }
+    noRooms.classList.add("hidden");
 
-    snap.forEach(roomSnap => {
-      if (roomSnap.child(currentUser.uid).exists()) {
-        found = true;
-        const id = roomSnap.key;
+    for (const id of rooms) {
+      const roomSnap = await get(ref(db, `rooms/${id}`));
+      if (!roomSnap.exists()) continue;
+      const roomData = roomSnap.val();
+      const isCreator = roomData.createdBy === currentUser.uid;
+      if ((roomFilter === "created" && !isCreator) || (roomFilter === "joined" && isCreator)) continue;
+      found = true;
 
-        const row = document.createElement("div");
-        row.className = "room-row";
+      const row = document.createElement("div");
+      row.className = "room-row";
 
-        const btn = document.createElement("button");
-        btn.textContent = id;
-        btn.onclick = () => openRoom(id);
+      const btn = document.createElement("button");
+      btn.textContent = roomData.chatName + (isCreator ? " ⭐" : "");
+      btn.onclick = () => openRoom(id);
 
-        const dots = document.createElement("span");
-        dots.innerHTML = "⋮";
-        dots.className = "room-dots";
-        dots.style.marginLeft = "12px";
-        dots.style.zIndex = "9999";
-        dots.style.cursor = "pointer";
+      const dots = document.createElement("span");
+      dots.innerHTML = "⋮";
+      dots.className = "room-dots";
+      dots.style.marginLeft = "12px";
+      dots.style.zIndex = "9999";
+      dots.style.cursor = "pointer";
+      dots.onclick = e => { e.stopPropagation(); showRoomMenu(e, id, isCreator); };
 
-        dots.onclick = e => {
-          e.stopPropagation();
-          showRoomMenu(e, id);
-        };
-
-        row.appendChild(btn);
-        row.appendChild(dots);
-        roomListEl.appendChild(row);
-      }
-    });
-
-    noRooms.classList.toggle("hidden", found);
+      row.appendChild(btn);
+      row.appendChild(dots);
+      roomListEl.appendChild(row);
+    }
+    noRooms.classList.toggle("hidden", !found);
   });
 }
 
 // ------------------------ THREE DOTS MENU ------------------------
-function showRoomMenu(e, roomID) {
+function showRoomMenu(e, roomID, isCreator) {
   const old = document.getElementById("roomMenu");
   if (old) old.remove();
 
@@ -259,35 +245,29 @@ function showRoomMenu(e, roomID) {
   menu.style.top = e.clientY + "px";
   menu.style.left = e.clientX + "px";
   menu.style.zIndex = "50000";
-
   menu.innerHTML = `
-    <div onclick="renameRoom('${roomID}')">Rename</div>
-    <div onclick="deleteRoom('${roomID}')">Delete</div>
+    ${isCreator ? `<div onclick="renameRoom('${roomID}')">Rename</div>` : ""}
+    ${isCreator ? `<div onclick="deleteRoom('${roomID}')">Delete</div>` : ""}
   `;
-
   document.body.appendChild(menu);
-
-  setTimeout(() => {
-    document.addEventListener("click", () => menu.remove(), { once: true });
-  }, 50);
+  setTimeout(() => { document.addEventListener("click", () => menu.remove(), { once: true }); }, 50);
 }
 
 // ------------------------ RENAME & DELETE ------------------------
 window.renameRoom = async (roomID) => {
   const snap = await get(ref(db, `rooms/${roomID}`));
-  if (!snap.exists()) return;
-
-  const currentName = snap.val().chatName;
-  const newName = prompt("Enter new chat name:", currentName);
+  if (!snap.exists() || snap.val().createdBy !== currentUser.uid) return;
+  const newName = prompt("Enter new chat name:", snap.val().chatName);
   if (!newName || newName.trim() === "") return;
 
   await update(ref(db, `rooms/${roomID}`), { chatName: newName.trim() });
   if (activeRoom === roomID) chatHeader.innerText = newName;
-
   loadRooms();
 };
 
 window.deleteRoom = async (roomID) => {
+  const snap = await get(ref(db, `rooms/${roomID}`));
+  if (!snap.exists() || snap.val().createdBy !== currentUser.uid) return;
   if (!confirm("Are you sure you want to delete this room?")) return;
 
   await remove(ref(db, `rooms/${roomID}`));
@@ -298,6 +278,7 @@ window.deleteRoom = async (roomID) => {
     activeRoom = null;
     chatHeader.innerText = "No Room";
     messagesEl.innerHTML = `<div class="center muted">Select a room</div>`;
+    localStorage.removeItem("activeRoom");
   }
 
   loadRooms();
@@ -306,8 +287,14 @@ window.deleteRoom = async (roomID) => {
 // ------------------------ OPEN ROOM ------------------------
 window.openRoom = async function(roomID) {
   activeRoom = roomID;
+  localStorage.setItem("activeRoom", roomID);
+
   const snap = await get(ref(db, `rooms/${roomID}`));
-  chatHeader.innerText = snap.exists() ? snap.val().chatName : roomID;
+  if (!snap.exists()) return;
+
+  const roomData = snap.val();
+  chatHeader.innerText = roomData.chatName;
+  updateRoomInfo(roomID, roomData.pass, roomData.chatName, roomData.roomURL);
 
   listenMessages(roomID);
 };
@@ -316,10 +303,7 @@ window.openRoom = async function(roomID) {
 function listenMessages(roomID) {
   onValue(ref(db, `messages/${roomID}`), snap => {
     messagesEl.innerHTML = "";
-    if (!snap.exists()) {
-      messagesEl.innerHTML = `<div class="center muted">No messages</div>`;
-      return;
-    }
+    if (!snap.exists()) { messagesEl.innerHTML = `<div class="center muted">No messages</div>`; return; }
 
     snap.forEach(m => {
       const d = m.val();
@@ -329,6 +313,7 @@ function listenMessages(roomID) {
       const img = document.createElement("img");
       img.src = d.photoURL || DEFAULT_AVATAR;
       img.className = "msg-avatar";
+      img.onclick = () => openProfileModal(d.uid, d.uid === currentUser.uid); // avatar click
 
       const bubble = document.createElement("div");
       bubble.className = "bubble";
@@ -347,7 +332,6 @@ function listenMessages(roomID) {
       bubble.appendChild(name);
       bubble.appendChild(txt);
       bubble.appendChild(time);
-
       wrap.appendChild(img);
       wrap.appendChild(bubble);
       messagesEl.appendChild(wrap);
@@ -359,12 +343,7 @@ function listenMessages(roomID) {
 
 // ------------------------ SEND MESSAGE ------------------------
 sendMsg.onclick = sendMessage;
-msgInput.onkeydown = e => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-};
+msgInput.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
 
 function sendMessage() {
   if (!currentUser || !activeRoom) return;
@@ -384,91 +363,77 @@ function sendMessage() {
 // ------------------------ PROFILE MODAL ------------------------
 modalClose.onclick = () => profileModal.classList.remove("show");
 
-// modalSaveProfile.onclick = async () => {
-//   if (!currentUser) return;
+// own avatar click
+userPhoto.onclick = async () => openProfileModal(currentUser.uid, true);
 
-//   const snap = await get(ref(db, `users/${currentUser.uid}`));
-//   const data = snap.exists() ? snap.val() : {};
-//   const now = Date.now();
-//   const lastChange = data.lastUsernameChange || 0;
-//   const diff = now - lastChange;
+async function openProfileModal(uid, editable) {
+  let data = usersCache[uid];
+  if (!data) {
+    const snap = await get(ref(db, `users/${uid}`));
+    data = snap.exists() ? snap.val() : { nickname: "User", username: "user", photoURL: DEFAULT_AVATAR, dob: "" };
+    usersCache[uid] = data;
+  }
 
-//   if (modalNickname.value !== data.displayName && diff < 14 * 24 * 60 * 60 * 1000) {
-//     alert("You can change username only once every 14 days.");
-//     return;
-//   }
+  // Populate modal
+  modalPhoto.src = data.photoURL || DEFAULT_AVATAR;
+  modalUsername.value = data.username || "user" + uid.slice(0,6);
+  modalNickname.value = data.nickname || "User";
+  modalDOB.value = data.dob || "";
 
-//   await update(ref(db, `users/${currentUser.uid}`), {
-//     photoURL: modalPhoto.src,
-//     displayName: modalNickname.value,
-//     dob: modalDOB.value,
-//     lastUsernameChange: (modalNickname.value !== data.displayName) ? now : lastChange
-//   });
+  // Heading
+  modalHeading.innerText = editable ? "Edit Profile" : "View Profile";
 
-//   userPhoto.src = modalPhoto.src;
-//   userNameDisplay.innerText = modalNickname.value;
-//   profileModal.classList.remove("show");
-//   alert("Profile updated!");
-// };
+  // Enable/disable fields
+  modalUsername.disabled = !editable;
+  modalNickname.disabled = !editable;
+  modalDOB.disabled = !editable;
 
-// ------------------------ CLEAR UI ------------------------
-function clearUI() {
-  messagesEl.innerHTML = `<div class="center muted">Select a room</div>`;
-  chatHeader.innerText = "No Room";
-  roomListEl.innerHTML = "";
-  roomInfoEl.innerHTML = "";
+  // Save button & instructions
+  modalSaveProfile.style.display = editable ? "block" : "none";
+  document.getElementById("modalInstructions").style.display = editable ? "block" : "none";
+
+  // Avatar click
+  modalPhoto.style.cursor = editable ? "pointer" : "default";
+  modalPhoto.onclick = editable ? () => avatarInput.click() : null;
+
+  // Show modal
+  profileModal.classList.add("show");
 }
 
 
+// ---------- AVATAR PICKER LOGIC ----------
+const avatarInput = document.getElementById("avatarInput");
 
-// ------------------------ OPEN PROFILE MODAL ------------------------
-userPhoto.onclick = async () => {
-  if (!currentUser) return;
-
-  const snap = await get(ref(db, "users/" + currentUser.uid));
-  const data = snap.exists() ? snap.val() : {};
-
-  // Avatar
-  modalPhoto.src = data.photoURL || currentUser.photoURL || DEFAULT_AVATAR;
-
-  // Username (can change once every 14 days)
-  modalUsername.value = data.username || "user" + currentUser.uid.slice(0, 6);
-
-  // Nickname (editable anytime)
-  modalNickname.value = data.nickname || data.displayName || "User";
-
-  // DOB
-  modalDOB.value = data.dob || "";
-
-  // Avatar change
-  modalPhoto.onclick = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.click();
-
-    input.onchange = () => {
-      const file = input.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = e => modalPhoto.src = e.target.result;
-      reader.readAsDataURL(file);
-    };
-  };
-
-  profileModal.classList.add("show");
+// click avatar → open file chooser
+modalPhoto.onclick = () => {
+  avatarInput.click();
 };
+
+// file selected → preview
+avatarInput.onchange = () => {
+  const file = avatarInput.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Please choose an image file");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    modalPhoto.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+};
+
 
 // ------------------------ SAVE PROFILE ------------------------
 modalSaveProfile.onclick = async () => {
   if (!currentUser) return;
-
   const snap = await get(ref(db, `users/${currentUser.uid}`));
   const data = snap.exists() ? snap.val() : {};
   const now = Date.now();
 
-  // Username 14-day restriction
   if (modalUsername.value.trim() !== data.username && (now - (data.lastUsernameChange || 0)) < 14*24*60*60*1000) {
     alert("You can change username only once every 14 days.");
     return;
@@ -486,12 +451,140 @@ modalSaveProfile.onclick = async () => {
     lastUsernameChange: (newUsername !== data.username) ? now : data.lastUsernameChange || 0
   });
 
-  // Update UI
+  usersCache[currentUser.uid] = {
+    ...data,
+    username: newUsername,
+    nickname: newNickname,
+    displayName: newNickname,
+    photoURL: modalPhoto.src,
+    dob: modalDOB.value,
+    lastUsernameChange: data.lastUsernameChange
+  };
+
   userPhoto.src = modalPhoto.src;
   userNameDisplay.innerText = newNickname;
-  userEmail.innerText = currentUser.email || "No email";
+
+  // Update messages in active room only
+  if (activeRoom) {
+    onValue(ref(db, `messages/${activeRoom}`), snap => {
+      snap.forEach(async m => {
+        const msgData = m.val();
+        if (msgData.uid === currentUser.uid) {
+          await update(ref(db, `messages/${activeRoom}/${m.key}`), {
+            nickname: newNickname,
+            photoURL: modalPhoto.src
+          });
+        }
+      });
+    }, { onlyOnce: true });
+  }
 
   profileModal.classList.remove("show");
   alert("Profile updated!");
 };
 
+// ------------------------ CLEAR UI ------------------------
+function clearUI() {
+  messagesEl.innerHTML = `<div class="center muted">Select a room</div>`;
+  chatHeader.innerText = "No Room";
+  roomListEl.innerHTML = "";
+  roomInfoEl.innerHTML = "";
+}
+
+// ------------------------ KEEP ROOM INFO BAR AFTER REFRESH ------------------------
+window.addEventListener("load", async () => {
+  if (!activeRoom) return;
+  const snap = await get(ref(db, `rooms/${activeRoom}`));
+  if (!snap.exists()) return;
+  openRoom(activeRoom);
+});
+
+// stop clicks inside modal from closing it
+profileModal.querySelector(".modal-content")?.addEventListener("click", e => {
+  e.stopPropagation();
+});
+
+// clicking outside closes modal
+profileModal.addEventListener("click", () => {
+  profileModal.classList.remove("show");
+});
+
+
+
+// ------------------------ TYPING INDICATOR ------------------------
+const typingIndicator = document.getElementById("typingIndicator");
+let typingTimeout = null;
+let typingRef = null; // current typing listener reference
+
+// Emit typing status to Firebase
+msgInput.addEventListener("input", () => {
+  if (!activeRoom || !currentUser) return;
+
+  const userTypingRef = ref(db, `typing/${activeRoom}/${currentUser.uid}`);
+  set(userTypingRef, true);
+
+  if (typingTimeout) clearTimeout(typingTimeout);
+
+  // Remove typing after 2s of inactivity
+  typingTimeout = setTimeout(() => remove(userTypingRef), 2000);
+});
+
+// Function to listen for typing users in the current room
+function listenTyping(roomID) {
+  // Remove previous listener if exists
+  if (typingRef) typingRef.off(); 
+
+  typingRef = ref(db, `typing/${roomID}`);
+  onValue(typingRef, snap => {
+    if (!snap.exists()) {
+      typingIndicator.classList.add("hidden");
+      typingIndicator.innerHTML = "";
+      return;
+    }
+
+    const typingUsers = [];
+    snap.forEach(child => {
+      if (child.key !== currentUser.uid) typingUsers.push(child.key);
+    });
+
+    if (typingUsers.length === 0) {
+      typingIndicator.classList.add("hidden");
+      typingIndicator.innerHTML = "";
+      return;
+    }
+
+    typingIndicator.classList.remove("hidden");
+    typingIndicator.innerHTML = "";
+
+    // Show only the first typing user
+    const uid = typingUsers[0];
+    const user = usersCache[uid] || { photoURL: DEFAULT_AVATAR, nickname: "User" };
+
+    const avatar = document.createElement("img");
+    avatar.src = user.photoURL || DEFAULT_AVATAR;
+    avatar.className = "typing-avatar";
+
+    const dots = document.createElement("div");
+    dots.className = "typing-dots";
+    dots.innerHTML = `<span class="dot"></span><span class="dot"></span><span class="dot"></span>`;
+
+    typingIndicator.appendChild(avatar);
+    typingIndicator.appendChild(dots);
+  });
+}
+
+// ------------------------ CALL LISTENER WHEN OPENING ROOM ------------------------
+window.openRoom = async function(roomID) {
+  activeRoom = roomID;
+  localStorage.setItem("activeRoom", roomID);
+
+  const snap = await get(ref(db, `rooms/${roomID}`));
+  if (!snap.exists()) return;
+
+  const roomData = snap.val();
+  chatHeader.innerText = roomData.chatName;
+  updateRoomInfo(roomID, roomData.pass, roomData.chatName, roomData.roomURL);
+
+  listenMessages(roomID);
+  listenTyping(roomID); // ✅ Add this to listen for typing in the current room
+};
