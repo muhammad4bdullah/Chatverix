@@ -2,57 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>WhatsChat — Abdullah</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chatverix</title>
+  <link rel="icon" type="image/png" href="FAVICON.png?v=3">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ===================== MAIN APP ===================== -->
-<div id="main" class="screen" style="display:none">
+<!-- MAIN APP -->
+<div id="main" class="screen" style="display:flex; flex-direction:column;">
 
-  <!-- ===================== PROFILE BAR ===================== -->
+  <!-- PROFILE BAR -->
   <header id="profileBar">
-    <img id="userPhoto" alt="avatar" class="avatar">
+    <div class="avatar-wrapper">
+      <img id="userPhoto" alt="avatar" class="avatar" src="https://i.ibb.co/7QpKsCX/default-avatar.png">
+      <span id="userStatus" class="status-dot offline"></span>
+    </div>
     <div class="profile-info">
       <div id="userNameDisplay" class="username">User</div>
-      <div id="userEmail" class="muted small"></div>
+      <div id="userEmail" class="muted small">user@example.com</div>
     </div>
     <div class="spacer"></div>
     <button id="btnLogout" class="ghost">Logout</button>
   </header>
 
-  <!-- ===================== APP CONTAINER ===================== -->
+  <!-- APP CONTAINER -->
   <div id="appContainer">
 
-    <!-- ===================== SIDEBAR ===================== -->
+    <!-- SIDEBAR -->
     <aside id="sidebar">
-
-      <!-- CREATE / JOIN ROOM BUTTONS -->
       <div class="sidebar-actions">
         <button id="btnShowCreate" class="small">+ Create Room</button>
         <button id="btnShowJoin" class="small">→ Join Room</button>
       </div>
 
-      <!-- CREATE ROOM PANEL -->
+      <!-- CREATE ROOM -->
       <div id="createRoomSection" class="panel hidden">
         <label for="roomNameCreate">Room Name</label>
         <input id="roomNameCreate" placeholder="Optional room name">
-
         <label for="roomPASScreate">Room Password (numbers)</label>
         <input id="roomPASScreate" placeholder="e.g. 123456" inputmode="numeric">
-
         <button id="btnCreate" class="primary small">Create</button>
       </div>
 
-      <!-- JOIN ROOM PANEL -->
+      <!-- JOIN ROOM -->
       <div id="joinRoomSection" class="panel hidden">
         <label for="roomIDjoin">Room ID</label>
         <input id="roomIDjoin" placeholder="Room ID">
-
         <label for="roomPASSjoin">Room Password</label>
         <input id="roomPASSjoin" placeholder="Password" inputmode="numeric">
-
         <button id="btnJoin" class="primary small">Join</button>
       </div>
 
@@ -63,56 +61,75 @@
         <button id="filterJoined" class="filter-btn">Joined</button>
       </div>
 
-      <!-- ROOM LIST -->
-      <h3 class="section-title">Your Rooms</h3>
-      <div id="roomList" class="room-list">
-        <div id="noRooms" class="muted small">
-          No rooms yet — create or join one.
-        </div>
+      <!-- ROOM SEARCH -->
+      <div class="room-search">
+        <input id="roomSearchInput" type="text" placeholder="Search rooms...">
+        <span class="search-icon">🔍</span>
       </div>
 
+      <h3 class="section-title">Your Rooms</h3>
+      <div id="roomList" class="room-list">
+        <div id="noRooms" class="muted small">No rooms yet — create or join one.</div>
+      </div>
     </aside>
 
-    <!-- ===================== CHAT PANEL ===================== -->
+    <!-- CHAT PANEL -->
     <section id="chat">
-
-      <!-- CHAT HEADER -->
       <div id="chatHeader">No Room Selected</div>
-
-      <!-- ROOM INFO BAR -->
       <div id="roomInfo"></div>
 
-      <!-- MESSAGES -->
       <div id="messages" class="messages">
         <div class="muted center">Select a room to start chatting</div>
       </div>
 
-      <!-- CHAT INPUT + TYPING INDICATOR -->
-      <div id="chatBottomWrapper">
+      <div id="chatBottomWrapper" style="display:flex; flex-direction:column;">
+
+        <!-- TYPING INDICATOR -->
         <div id="typingIndicator" class="typing-bubble hidden">
-          <!-- JS will populate avatar + animated dots here -->
+          <img src="https://i.ibb.co/7QpKsCX/default-avatar.png" alt="avatar">
+          <div class="typing-dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+          </div>
         </div>
-        <div id="chatBottom">
-          <input id="msgInput" placeholder="Type a message..." autocomplete="off">
+
+        <!-- CHAT INPUT -->
+        <div id="chatBottom" style="display:flex; align-items:center; gap:5px; position:relative;">
+          <input id="msgInput" placeholder="Type a message..." autocomplete="off" style="flex:1;">
+
+          <!-- ATTACHMENT MENU -->
+          <div class="attachment-wrapper" style="position:relative;">
+            <button id="attachmentBtn">📎</button>
+            <div id="attachmentMenu" class="attachment-menu">
+              <button id="imageBtn">Image</button>
+              <button id="documentBtn">Document</button>
+              <button id="linkBtn">Link</button>
+            </div>
+          </div>
+
           <button id="sendMsg">➤</button>
         </div>
       </div>
-
     </section>
-
   </div>
 </div>
 
-<!-- ===================== PROFILE MODAL ===================== -->
+<!-- HIDDEN FILE INPUTS -->
+<input type="file" id="imageInput" accept="image/*" style="display:none;">
+<input type="file" id="documentInput" style="display:none;">
+
+<!-- PROFILE MODAL -->
 <div id="profileModal">
   <div class="panel modal-content">
-
     <span id="modalClose" class="close">&times;</span>
-
     <h2 id="modalHeading">Edit Profile</h2>
 
     <div class="modal-avatar">
-      <img id="modalPhoto" src="https://i.ibb.co/7QpKsCX/default-avatar.png" alt="Avatar">
+      <div class="avatar-wrapper">
+        <img id="modalPhoto" src="https://i.ibb.co/7QpKsCX/default-avatar.png" alt="Avatar">
+        <span id="modalStatus" class="status-dot offline"></span>
+      </div>
       <p id="modalInstructions">Click avatar to change</p>
     </div>
 
@@ -122,24 +139,26 @@
       <label for="modalUsername">Username (unique, 14-day limit)</label>
       <input id="modalUsername" type="text">
     </div>
-
     <div class="modal-field">
       <label for="modalNickname">Nickname (always editable)</label>
       <input id="modalNickname" type="text">
     </div>
-
     <div class="modal-field">
       <label for="modalDOB">Date of Birth</label>
       <input id="modalDOB" type="date">
     </div>
 
     <button id="modalSaveProfile" class="save-btn">Save Changes</button>
-
   </div>
 </div>
 
-<!-- ===================== SCRIPTS ===================== -->
-<script type="module" src="app.js"></script>
+<!-- IMAGE VIEWER -->
+<div id="imageViewer" class="image-viewer hidden">
+  <span id="imageViewerClose">&times;</span>
+  <img id="imageViewerImg" src="" alt="Preview">
+</div>
 
+
+<script type="module" src="app.js"></script>
 </body>
 </html>
