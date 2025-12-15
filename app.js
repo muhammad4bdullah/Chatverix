@@ -75,24 +75,66 @@ const imageViewer = document.getElementById("imageViewer");
 const imageViewerImg = document.getElementById("imageViewerImg");
 const imageViewerClose = document.getElementById("imageViewerClose");
 
+// Create a download button dynamically
+let imageViewerDownload = document.getElementById("imageViewerDownload");
+if (!imageViewerDownload) {
+  imageViewerDownload = document.createElement("button");
+  imageViewerDownload.id = "imageViewerDownload";
+  imageViewerDownload.innerText = "Download";
+  imageViewerDownload.style.position = "absolute";
+  imageViewerDownload.style.bottom = "20px";
+  imageViewerDownload.style.right = "20px";
+  imageViewerDownload.style.padding = "6px 12px";
+  imageViewerDownload.style.border = "none";
+  imageViewerDownload.style.borderRadius = "6px";
+  imageViewerDownload.style.background = "rgba(255,255,255,0.9)";
+  imageViewerDownload.style.color = "#000";
+  imageViewerDownload.style.cursor = "pointer";
+  imageViewerDownload.style.zIndex = "1000000";
+  imageViewer.appendChild(imageViewerDownload);
+}
+
 function openImageViewer(src) {
   imageViewerImg.src = src;
-  imageViewer.classList.remove("hidden");
+  imageViewer.classList.remove("hidden"); // make visible
+  void imageViewer.offsetWidth; // force reflow for transition
+  imageViewer.classList.add("show"); // triggers fade-in + scale
+}
+
+function closeImageViewer() {
+  imageViewer.classList.remove("show");
+  imageViewer.classList.add("closing"); // fade out
+  imageViewer.addEventListener(
+    "transitionend",
+    function hideAfterTransition(e) {
+      if (e.propertyName === "opacity") {
+        imageViewer.classList.add("hidden");
+        imageViewer.classList.remove("closing");
+        imageViewerImg.src = "";
+        imageViewer.removeEventListener("transitionend", hideAfterTransition);
+      }
+    }
+  );
 }
 
 // Close on ❌ click
-imageViewerClose.onclick = () => {
-  imageViewer.classList.add("hidden");
-  imageViewerImg.src = "";
-};
+imageViewerClose.onclick = closeImageViewer;
 
 // Close on background click
 imageViewer.onclick = (e) => {
-  if (e.target === imageViewer) {
-    imageViewer.classList.add("hidden");
-    imageViewerImg.src = "";
-  }
+  if (e.target === imageViewer) closeImageViewer();
 };
+
+// Download the image
+imageViewerDownload.onclick = () => {
+  const a = document.createElement("a");
+  a.href = imageViewerImg.src;
+  a.download = "image.png"; // default filename
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
 
 // ------------------------ LOGOUT ------------------------
 btnLogout.onclick = async () => {
@@ -491,6 +533,11 @@ function listenMessages(roomID) {
       // NORMAL MESSAGE
       const wrap = document.createElement("div");
       wrap.className = "message " + (d.uid === currentUser.uid ? "mine" : "");
+      // Add animation class
+      wrap.classList.add("new-msg");
+
+      // Trigger animation
+      requestAnimationFrame(() => wrap.classList.add("show"));
 
       // AVATAR
       const avatar = document.createElement("img");
@@ -530,19 +577,20 @@ function listenMessages(roomID) {
         bubble.appendChild(linkEl);
 
       } else if (d.type === "file") {
-        const doc = document.createElement("a");
-        doc.href = "#"; // or actual download URL if available
-        doc.className = "chat-document";
-        doc.innerHTML = `
-          <div class="doc-icon">📄</div>
-          <div class="doc-info">
-            <div class="doc-name">${d.text}</div>
-            <div class="doc-size">Document</div>
-          </div>
-        `;
-        bubble.appendChild(doc);
-
-      } else {
+      const doc = document.createElement("a");
+      doc.href = d.text;            // use the actual file URL
+      doc.className = "chat-document";
+      doc.download = d.text;        // sets the filename for download
+      doc.innerHTML = `
+    <div class="doc-icon">📄</div>
+    <div class="doc-info">
+      <div class="doc-name">${d.text}</div>
+      <div class="doc-size">Document</div>
+    </div>
+  `;
+  bubble.appendChild(doc);
+}
+ else {
         // normal text
         const textEl = document.createElement("div");
         textEl.textContent = d.text;
