@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chatverix — Sign Up</title>
+<link rel="stylesheet" href="style.css">
+<style>
+:root {
+  --bg:#071018; --panel:#0f1c22; --muted:#9aa7ad; --accent:#25D366;
+}
+body, html { height:100%; margin:0; font-family:Inter,system-ui,Arial,sans-serif; background: linear-gradient(180deg,#041021,#08121a); display:flex; justify-content:center; align-items:center; color:#e8f0f2; }
+.card { width:100%; max-width:400px; background:var(--panel); padding:28px; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.6); text-align:center; }
+h1 { color:var(--accent); font-size:34px; margin-bottom:6px; }
+.muted { color:var(--muted); font-size:14px; margin-bottom:12px; }
+input { width:100%; padding:10px; border-radius:8px; border:none; background:#051017; color:#eaf3f5; margin-bottom:12px; }
+button { width:100%; border:none; border-radius:10px; padding:10px; font-weight:600; cursor:pointer; }
+.primary { background:var(--accent); color:#041018; }
+.ghost { background:transparent; color:var(--muted); margin-top:12px; }
+.toggle { margin-top:16px; font-size:14px; }
+.toggle span { color:var(--accent); cursor:pointer; font-weight:600; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Sign Up</h1>
+  <p class="muted">Create your Chatverix account</p>
+
+  <button id="googleBtn" class="primary">Continue with Google</button>
+  <p class="muted" style="margin:12px 0">or</p>
+
+  <form id="signupForm">
+    <input type="text" id="username" placeholder="Username" required>
+    <input type="text" id="nickname" placeholder="Nickname" required>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button type="submit" class="primary">Sign Up</button>
+  </form>
+
+  <div class="toggle">
+    <span id="toLogin">Already have an account? Login</span>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  sendEmailVerification
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDatabase, ref, set, get, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAEWxTJ1loQkXM1ShwAAF1J15RQLlCgdGM",
+  authDomain: "msgapp-262c9.firebaseapp.com",
+  projectId: "msgapp-262c9",
+  databaseURL: "https://msgapp-262c9-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+const provider = new GoogleAuthProvider();
+
+/* ---------------- TO LOGIN PAGE ---------------- */
+document.getElementById("toLogin").onclick = () => {
+  window.location.href = "login.html";
+};
+
+/* ---------------- GOOGLE SIGNUP ---------------- */
+document.getElementById("googleBtn").onclick = async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    const userRef = ref(db, `users/${user.uid}`);
+    const snap = await get(userRef);
+
+    if (!snap.exists()) {
+      // Ask user to set username, nickname, password
+      const username = prompt("Set a username (unique):");
+      const nickname = prompt("Set a nickname:");
+      const password = prompt("Set a password for manual login:");
+
+      if(!username || !nickname || !password) throw new Error("All fields are required.");
+
+      await set(userRef, {
+        uid: user.uid,
+        username,
+        nickname,
+        email: user.email,
+        photoURL: user.photoURL,
+        createdAt: Date.now()
+      });
+
+      await createUserWithEmailAndPassword(auth, user.email, password);
+    }
+
+    window.location.href = "index.html";
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+/* ---------------- MANUAL SIGNUP ---------------- */
+document.getElementById("signupForm").onsubmit = async e => {
+  e.preventDefault();
+  const username = document.getElementById("username").value.trim();
+  const nickname = document.getElementById("nickname").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  try {
+    // Check if username/email already exists
+    const usersSnap = await get(ref(db, "users"));
+    const users = usersSnap.val() || {};
+    for (let uid in users) {
+      if (users[uid].username === username) throw new Error("Username already taken");
+      if (users[uid].email === email) throw new Error("Email already used");
+    }
+
+    const userCred = await createUserWithEmailAndPassword(auth, email, password);
+    await sendEmailVerification(userCred.user);
+
+    await set(ref(db, `users/${userCred.user.uid}`), {
+      uid: userCred.user.uid,
+      username,
+      nickname,
+      email,
+      photoURL: "https://i.ibb.co/7QpKsCX/default-avatar.png",
+      createdAt: Date.now()
+    });
+
+    alert("Verification email sent! Please verify before logging in.");
+    window.location.href = "login.html";
+  } catch (err) {
+    alert(err.message);
+  }
+};
+</script>
+
+</body>
+</html>
