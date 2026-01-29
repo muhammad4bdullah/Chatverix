@@ -11,11 +11,13 @@
   const isMobile = window.innerWidth <= 880; // matches your CSS breakpoint
 
   if (isMobile) {
-    location.replace("mob.html");
+    location.replace("mob/mob.html"); // if mob.html is in mob/ folder
   } else {
-    location.replace("pc.html");
+    location.replace("pc/pc.html"); // point to the pc folder
   }
 </script>
 
+
 </body>
 </html>
+
