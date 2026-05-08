@@ -80,6 +80,10 @@ const imageViewer = document.getElementById("imageViewer");
 const imageViewerImg = document.getElementById("imageViewerImg");
 const imageViewerClose = document.getElementById("imageViewerClose");
 
+const usersPanelBtn = document.getElementById("usersPanelBtn");
+const liveUsersList = document.getElementById("liveUsersList");
+const usersPanelMenu = document.getElementById("usersPanelMenu");
+
 // Create a download button dynamically
 let imageViewerDownload = document.getElementById("imageViewerDownload");
 if (!imageViewerDownload) {
@@ -97,6 +101,118 @@ if (!imageViewerDownload) {
   imageViewerDownload.style.cursor = "pointer";
   imageViewerDownload.style.zIndex = "1000000";
   imageViewer.appendChild(imageViewerDownload);
+}
+
+let openMenu = null;
+let currentReply = null;
+let reactionBar = null;
+const REACTIONS = ["👍", "❤️", "😂", "😮", "😢"];
+
+document.addEventListener("click", () => {
+  if (openMenu) {
+    openMenu.style.display = "none";
+    openMenu = null;
+  }
+});
+
+
+function showReplyBar(data) {
+  const bar = document.getElementById("replyBar");
+
+  bar.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:6px;">
+      <div>
+        Replying to <b>${data.nickname}</b><br>
+        <span style="opacity:0.7; font-size:12px;">${data.text}</span>
+      </div>
+      <span id="cancelReply" style="cursor:pointer;">✖</span>
+    </div>
+  `;
+
+  bar.style.display = "block";
+
+  document.getElementById("cancelReply").onclick = () => {
+    currentReply = null;
+    bar.style.display = "none";
+  };
+}
+
+function showReactionBar(msgID) {
+  // 🔥 ALWAYS fully reset old bar
+  if (reactionBar) {
+    reactionBar.remove();
+    reactionBar = null;
+  }
+
+  const bar = document.createElement("div");
+  reactionBar = bar;
+
+  bar.id = "reactionBar";
+
+  bar.style.position = "fixed";
+  bar.style.bottom = "90px";
+  bar.style.left = "50%";
+  bar.style.transform = "translateX(-50%)";
+  bar.style.background = "#1e1e1e";
+  bar.style.padding = "10px 12px";
+  bar.style.borderRadius = "14px";
+  bar.style.display = "flex";
+  bar.style.gap = "12px";
+  bar.style.zIndex = "99999";
+  bar.style.boxShadow = "0 10px 25px rgba(0,0,0,0.4)";
+
+  REACTIONS.forEach(emoji => {
+    const btn = document.createElement("span");
+    btn.textContent = emoji;
+
+    btn.style.fontSize = "24px";
+    btn.style.cursor = "pointer";
+    btn.style.transition = "transform 0.15s ease";
+
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+
+      btn.style.transform = "scale(1.8)";
+      setTimeout(() => btn.style.transform = "scale(1)", 150);
+
+      const msgRef = ref(db, `messages/${activeRoom}/${msgID}`);
+      const snap = await get(msgRef);
+      const data = snap.val();
+
+      let reactions = data.reactions || {};
+
+      if (reactions[currentUser.uid] === emoji) {
+        delete reactions[currentUser.uid];
+      } else {
+        reactions[currentUser.uid] = emoji;
+      }
+
+      await update(msgRef, { reactions });
+
+      // cleanup
+      if (reactionBar) {
+        reactionBar.remove();
+        reactionBar = null;
+      }
+    };
+
+    bar.appendChild(btn);
+  });
+
+  document.body.appendChild(bar);
+
+  // ✅ safe outside click handler (NO duplication)
+  const closeHandler = (e) => {
+    if (reactionBar && !reactionBar.contains(e.target)) {
+      reactionBar.remove();
+      reactionBar = null;
+      document.removeEventListener("click", closeHandler);
+    }
+  };
+
+  setTimeout(() => {
+    document.addEventListener("click", closeHandler);
+  }, 50);
 }
 
 function openImageViewer(src) {
@@ -368,21 +484,51 @@ function updateFilterButtons() {
 }
 
 // ------------------------ ROOM LIST ------------------------
+let roomsListener = null;
+
 function loadRooms() {
-  onValue(ref(db, "members"), async snap => {
+  // remove old listener
+  if (roomsListener) roomsListener();
+
+  const membersRef = ref(db, "members");
+
+  roomsListener = onValue(membersRef, async snap => {
     roomListEl.innerHTML = "";
     let found = false;
+
+    if (!snap.exists()) {
+      noRooms.classList.remove("hidden");
+      return;
+    }
+
     const rooms = [];
-    snap.forEach(roomSnap => { if (roomSnap.child(currentUser.uid).exists()) rooms.push(roomSnap.key); });
-    if (rooms.length === 0) { noRooms.classList.remove("hidden"); return; }
+
+    snap.forEach(roomSnap => {
+      if (roomSnap.child(currentUser.uid).exists()) {
+        rooms.push(roomSnap.key);
+      }
+    });
+
+    if (rooms.length === 0) {
+      noRooms.classList.remove("hidden");
+      return;
+    }
+
     noRooms.classList.add("hidden");
 
     for (const id of rooms) {
       const roomSnap = await get(ref(db, `rooms/${id}`));
+
       if (!roomSnap.exists()) continue;
+
       const roomData = roomSnap.val();
       const isCreator = roomData.createdBy === currentUser.uid;
-      if ((roomFilter === "created" && !isCreator) || (roomFilter === "joined" && isCreator)) continue;
+
+      if (
+        (roomFilter === "created" && !isCreator) ||
+        (roomFilter === "joined" && isCreator)
+      ) continue;
+
       found = true;
 
       const row = document.createElement("div");
@@ -390,21 +536,27 @@ function loadRooms() {
 
       const btn = document.createElement("button");
       btn.textContent = roomData.chatName + (isCreator ? " ⭐" : "");
+
       btn.onclick = () => openRoom(id);
 
       const dots = document.createElement("span");
       dots.innerHTML = "⋮";
       dots.className = "room-dots";
       dots.style.marginLeft = "12px";
-      dots.style.zIndex = "9999";
       dots.style.cursor = "pointer";
-      dots.onclick = e => { e.stopPropagation(); showRoomMenu(e, id, isCreator); };
+
+      dots.onclick = e => {
+        e.stopPropagation();
+        showRoomMenu(e, id, isCreator);
+      };
 
       row.appendChild(btn);
       row.appendChild(dots);
+
       roomListEl.appendChild(row);
     }
-    noRooms.classList.toggle("hidden", !found);
+
+    noRooms.classList.toggle("hidden", found);
   });
 }
 //SHOW ROOOOM MENU
@@ -520,25 +672,24 @@ function showKickMenu(event, uid, nickname) {
 window.leaveRoom = async function(roomID) {
   if (!confirm("Do you want to leave this room?")) return;
 
+  // ✅ Push system message first
+  pushSystemMessage(roomID, `<strong>${userNameDisplay.innerText}</strong> has left the room`);
+
   // Remove this user from the members of the room
   await remove(ref(db, `members/${roomID}/${currentUser.uid}`));
 
-  // ✅ Push system message AFTER removal
-  pushSystemMessage(roomID, `<strong>${userNameDisplay.innerText}</strong> has left the room`);
-
-  // Clear UI if this was the active room
+  // If user was in this active room, clear UI
   if (activeRoom === roomID) {
     activeRoom = null;
     localStorage.removeItem("activeRoom");
     clearUI();
   }
 
-  // Reload room list
+  // Reload the room list
   loadRooms();
 
   alert("You have left the room.");
 };
-;
 
 
 
@@ -769,7 +920,7 @@ window.openRoom = async function (roomID) {
 // ------------------------ LISTEN MESSAGES ------------------------
 function listenMessages(roomID) {
   onValue(ref(db, `messages/${roomID}`), snap => {
-    messagesEl.innerHTML = ""; // clear previous messages
+    messagesEl.innerHTML = "";
 
     if (!snap.exists()) {
       messagesEl.innerHTML = `<div class="center muted">No messages</div>`;
@@ -778,6 +929,8 @@ function listenMessages(roomID) {
 
     snap.forEach(m => {
       const d = m.val();
+      const msgID = m.key;
+      const isMine = d.uid === currentUser.uid;
 
       // SYSTEM MESSAGE
       if (d.type === "system") {
@@ -788,103 +941,255 @@ function listenMessages(roomID) {
         return;
       }
 
-      // NORMAL MESSAGE
+      // WRAPPER
       const wrap = document.createElement("div");
-      wrap.className = "message " + (d.uid === currentUser.uid ? "mine" : "");
-      // Add animation class
-      wrap.classList.add("new-msg");
-
-      // Trigger animation
-      requestAnimationFrame(() => wrap.classList.add("show"));
+      wrap.id = `msg-${msgID}`;
+      wrap.className = "message " + (isMine ? "mine" : "");
+      wrap.style.position = "relative";
+      wrap.style.display = "flex";
+      wrap.style.alignItems = "center";
+      wrap.style.gap = "6px";
 
       // AVATAR
       const avatar = document.createElement("img");
       avatar.src = d.photoURL || DEFAULT_AVATAR;
       avatar.className = "msg-avatar";
-      avatar.onclick = () => {
-  openProfileModal(d.uid, d.uid === currentUser.uid);
-
-  // Only creator can kick others
-  if (currentUser.uid === activeRoomCreator && d.uid !== currentUser.uid) {
-    avatar.oncontextmenu = (e) => { // right-click to kick
-      e.preventDefault();
-      showKickMenu(d.uid, d.nickname);
-    };
-  }
-};
-
-
+      avatar.onclick = () => openProfileModal(d.uid, isMine);
 
       // BUBBLE
       const bubble = document.createElement("div");
       bubble.className = "bubble";
+      bubble.style.position = "relative";
+      bubble.style.maxWidth = "75%";
+
+      // ---------------- REPLY BUBBLE ----------------
+// ---------------- REPLY UI ----------------
+       if (d.replyTo) {
+  const replyBox = document.createElement("div");
+  replyBox.className = "reply-box";
+
+  replyBox.onclick = () => {
+    const target = document.getElementById(`msg-${d.replyTo.msgID}`);
+    if (!target) return;
+
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
+
+    // highlight effect
+    target.style.transition = "all 0.3s ease";
+    target.style.background = "rgba(108, 92, 231, 0.25)";
+    target.style.borderRadius = "8px";
+
+    setTimeout(() => {
+      target.style.background = "transparent";
+    }, 1200);
+  };
+
+  const name = document.createElement("div");
+  name.className = "reply-name";
+  name.textContent = d.replyTo.nickname;
+
+  const text = document.createElement("div");
+  text.className = "reply-text";
+  text.textContent = d.replyTo.text;
+
+  replyBox.appendChild(name);
+  replyBox.appendChild(text);
+
+  bubble.appendChild(replyBox);
+}
 
       // NAME
-const name = document.createElement("div");
-name.className = "msg-name";
-name.textContent = d.nickname || "User";
+      const name = document.createElement("div");
+      name.className = "msg-name";
+      name.textContent = d.nickname || "User";
+      name.style.color = (d.uid === activeRoomCreator) ? "red" : "limegreen";
+      bubble.appendChild(name);
 
-// ✅ CREATOR = RED, OTHERS = GREEN
-if (d.uid === activeRoomCreator) {
-  name.style.color = "red";
-} else {
-  name.style.color = "limegreen";
-}
+      // CONTENT
+      const content = document.createElement("div");
 
-bubble.appendChild(name);
-
-
-      // MESSAGE CONTENT
       if (d.type === "image") {
-        const imgEl = document.createElement("img");
-        imgEl.src = d.text;
-        imgEl.className = "chat-image";
-        imgEl.style.cursor = "pointer";
-        imgEl.onclick = (e) => {
-          e.preventDefault();
-          openImageViewer(d.text);
-        };
-        bubble.appendChild(imgEl);
+        const img = document.createElement("img");
+        img.src = d.text;
+        img.className = "chat-image";
+        img.onclick = () => openImageViewer(d.text);
+        content.appendChild(img);
 
       } else if (d.type === "link") {
-        const linkEl = document.createElement("a");
-        linkEl.href = d.text;
-        linkEl.textContent = d.text;
-        linkEl.target = "_blank";
-        linkEl.rel = "noopener noreferrer";
-        linkEl.className = "chat-link";
-        bubble.appendChild(linkEl);
+        const a = document.createElement("a");
+        a.href = d.text;
+        a.target = "_blank";
+        a.textContent = d.text;
+        content.appendChild(a);
 
       } else if (d.type === "file") {
-      const doc = document.createElement("a");
-      doc.href = d.text;            // use the actual file URL
-      doc.className = "chat-document";
-      doc.download = d.text;        // sets the filename for download
-      doc.innerHTML = `
-    <div class="doc-icon">📄</div>
-    <div class="doc-info">
-      <div class="doc-name">${d.text}</div>
-      <div class="doc-size">Document</div>
-    </div>
-  `;
-  bubble.appendChild(doc);
-}
- else {
-        // normal text
-        const textEl = document.createElement("div");
-        textEl.textContent = d.text;
-        bubble.appendChild(textEl);
+        content.innerHTML = `📄 ${d.text}`;
+      } else {
+        content.textContent = d.text;
       }
 
-      // TIME
+      bubble.appendChild(content);
+
+      // ---------------- REACTIONS DISPLAY ----------------
+if (d.reactions) {
+  const reactBox = document.createElement("div");
+  reactBox.className = "reaction-box";
+
+  const counts = {};
+
+  Object.values(d.reactions).forEach(r => {
+    counts[r] = (counts[r] || 0) + 1;
+  });
+
+  Object.entries(counts).forEach(([emoji, count]) => {
+    const span = document.createElement("span");
+    span.className = "reaction-item";
+    span.textContent = `${emoji} ${count}`;
+    reactBox.appendChild(span);
+  });
+
+  bubble.appendChild(reactBox);
+}
+
+      // TIME + EDITED LABEL
       const time = document.createElement("div");
       time.className = "msg-time";
-      time.textContent = new Date(d.time).toLocaleTimeString();
+
+      const timeText = new Date(d.time).toLocaleTimeString();
+
+      if (d.edited) {
+        time.innerHTML = `${timeText} <span style="font-size:10px;opacity:0.7;">(EDITED)</span>`;
+      } else {
+        time.textContent = timeText;
+      }
+
       bubble.appendChild(time);
 
-      // APPEND
-      wrap.appendChild(avatar);
-      wrap.appendChild(bubble);
+      // ---------------- 3 DOT BUTTON ----------------
+      const menuBtn = document.createElement("div");
+      menuBtn.innerHTML = "⋮";
+      menuBtn.style.cursor = "pointer";
+      menuBtn.style.fontSize = "18px";
+      menuBtn.style.padding = "4px 6px";
+      menuBtn.style.userSelect = "none";
+
+      const offset = "2px";
+
+      if (isMine) {
+        menuBtn.style.order = "0";
+        menuBtn.style.marginRight = offset;
+      } else {
+        menuBtn.style.order = "2";
+        menuBtn.style.marginLeft = offset;
+      }
+
+      // ---------------- MENU ----------------
+      const menu = document.createElement("div");
+      menu.style.position = "fixed";
+      menu.style.background = "#1e1e1e";
+      menu.style.color = "#fff";
+      menu.style.borderRadius = "8px";
+      menu.style.padding = "6px 0";
+      menu.style.minWidth = "150px";
+      menu.style.boxShadow = "0 4px 12px rgba(0,0,0,0.5)";
+      menu.style.zIndex = "99999";
+      menu.style.display = "none";
+
+      const add = (txt, fn) => {
+        const item = document.createElement("div");
+        item.textContent = txt;
+        item.style.padding = "8px 12px";
+        item.style.cursor = "pointer";
+
+        item.onmouseover = () => item.style.background = "#333";
+        item.onmouseout = () => item.style.background = "transparent";
+
+        item.onclick = () => {
+          fn();
+          menu.style.display = "none";
+          openMenu = null;
+        };
+
+        menu.appendChild(item);
+      };
+
+      add("Copy", () => navigator.clipboard.writeText(d.text || ""));
+
+      add("React", () => {
+  showReactionBar(msgID);
+});
+
+      add("Reply", () => {
+  currentReply = {
+    msgID: msgID,
+    text: d.text,
+    nickname: d.nickname || "User"
+  };
+
+  showReplyBar(currentReply);
+});
+      // ❌ NO "Delete for me" anymore
+
+      if (isMine) {
+        add("Edit", async () => {
+          const newText = prompt("Edit message:", d.text);
+          if (!newText) return;
+
+          await update(ref(db, `messages/${roomID}/${msgID}`), {
+            text: newText,
+            edited: true,
+            editTime: Date.now()
+          });
+        });
+
+        add("Delete", async () => {
+          // get username before deleting
+          const username = d.nickname || "User";
+
+          await remove(ref(db, `messages/${roomID}/${msgID}`));
+
+          // system message
+          await push(ref(db, `messages/${roomID}`), {
+            type: "system",
+            text: ` Message deleted by <b>${username}</b>`,
+            time: Date.now()
+          });
+        });
+      }
+
+      document.body.appendChild(menu);
+
+      // OPEN MENU
+      menuBtn.onclick = (e) => {
+        e.stopPropagation();
+
+        if (openMenu && openMenu !== menu) {
+          openMenu.style.display = "none";
+        }
+
+        const rect = menuBtn.getBoundingClientRect();
+
+        menu.style.top = rect.bottom + "px";
+        menu.style.left = rect.left + "px";
+
+        menu.style.display = "block";
+        openMenu = menu;
+      };
+
+      // BUILD ORDER
+      if (isMine) {
+        wrap.appendChild(menuBtn);
+        wrap.appendChild(bubble);
+        wrap.appendChild(avatar);
+      } else {
+        wrap.appendChild(avatar);
+        wrap.appendChild(bubble);
+        wrap.appendChild(menuBtn);
+      }
+
       messagesEl.appendChild(wrap);
     });
 
@@ -892,24 +1197,37 @@ bubble.appendChild(name);
   });
 }
 
-
 // ------------------------ SEND MESSAGE ------------------------
 sendMsg.onclick = sendMessage;
 msgInput.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
 
 function sendMessage() {
   if (!currentUser || !activeRoom) return;
+
   const text = msgInput.value.trim();
   if (!text) return;
+
   msgInput.value = "";
 
-  push(ref(db, `messages/${activeRoom}`), {
-    uid: currentUser.uid,
-    nickname: userNameDisplay.innerText,
-    photoURL: userPhoto.src,
-    text,
-    time: Date.now()
-  });
+push(ref(db, `messages/${activeRoom}`), {
+  uid: currentUser.uid,
+  nickname: userNameDisplay.innerText,
+  photoURL: userPhoto.src,
+  text: text,
+  time: Date.now(),
+  type: "text",
+
+  replyTo: currentReply ? {
+    msgID: currentReply.msgID,
+    text: currentReply.text,
+    nickname: currentReply.nickname
+  } : null,
+
+  reactions: {} // ⭐ ADD THIS LINE
+});
+
+  currentReply = null;
+  document.getElementById("replyBar").style.display = "none";
 
   const userTypingRef = ref(db, `typing/${activeRoom}/${currentUser.uid}`);
   remove(userTypingRef);
@@ -932,7 +1250,7 @@ async function openProfileModal(uid, editable) {
   modalNickname.value = data.nickname || "User";
   modalDOB.value = data.dob || "";
 
-  modalHeading.innerText = editable ? "Edit Profile" : "View Profile";
+  modalHeading.innerText = editable ? "*Edit Profile*" : "*View Profile*";
   modalUsername.disabled = !editable;
   modalNickname.disabled = !editable;
   modalDOB.disabled = !editable;
@@ -1064,8 +1382,12 @@ await update(ref(db, `users/${currentUser.uid}`), {
 function clearUI() {
   messagesEl.innerHTML = `<div class="center muted">Select a room</div>`;
   chatHeader.innerText = "No Room";
-  roomListEl.innerHTML = "";
   roomInfoEl.innerHTML = "";
+
+  // DO NOT CLEAR ROOM SIDEBAR
+  // roomListEl.innerHTML = ""; ❌ REMOVE THIS
+
+  activeRoom = null;
 }
 
 // ------------------------ KEEP ROOM AFTER REFRESH ------------------------
@@ -1425,4 +1747,3 @@ document.addEventListener("DOMContentLoaded", () => {
     usersPanelMenu.classList.remove("open");
   });
 });
-
