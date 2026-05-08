@@ -4,20 +4,156 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chatverix</title>
+  <link rel="icon" type="image/png" href="FAVICON.png?v=3">
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<script>
-  const isMobile = window.innerWidth <= 880; // matches your CSS breakpoint
+<!-- MAIN APP -->
+<div id="main" class="screen" style="display:flex; flex-direction:column;">
 
-  if (isMobile) {
-    location.replace("mob/mob.html"); // if mob.html is in mob/ folder
-  } else {
-    location.replace("pc/pc.html"); // point to the pc folder
-  }
-</script>
+  <!-- PROFILE BAR -->
+  <header id="profileBar">
+    <div class="avatar-wrapper">
+      <img id="userPhoto" class="avatar" src="">
+      <span id="userStatus" class="status-dot offline"></span>
+    </div>
 
+    <div class="profile-info">
+      <div id="userNameDisplay" class="username">User</div>
+      <div id="userEmail" class="muted small">user@example.com</div>
+    </div>
 
+    <div class="spacer"></div>
+    <button id="btnLogout" class="ghost">Logout</button>
+  </header>
+
+  <div id="appContainer">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+
+      <div class="sidebar-actions">
+        <button id="btnShowCreate" class="small">+ Create Room</button>
+        <button id="btnShowJoin" class="small">→ Join Room</button>
+      </div>
+
+      <!-- CREATE -->
+      <div id="createRoomSection" class="panel hidden">
+        <input id="roomNameCreate" placeholder="Room Name">
+        <input id="roomPASScreate" placeholder="Password">
+        <button id="btnCreate">Create</button>
+      </div>
+
+      <!-- JOIN -->
+      <div id="joinRoomSection" class="panel hidden">
+        <input id="roomIDjoin" placeholder="Room ID">
+        <input id="roomPASSjoin" placeholder="Password">
+        <button id="btnJoin">Join</button>
+      </div>
+
+      <!-- FILTER -->
+      <div class="room-filter">
+        <button id="filterAll" class="filter-btn active">All</button>
+        <button id="filterCreated" class="filter-btn">Created</button>
+        <button id="filterJoined" class="filter-btn">Joined</button>
+      </div>
+
+      <!-- SEARCH -->
+      <div class="room-search">
+        <input id="roomSearchInput" placeholder="Search rooms...">
+      </div>
+
+      <h3>Your Rooms</h3>
+      <div id="roomList"></div>
+      <div id="noRooms" class="muted">No rooms yet</div>
+
+    </aside>
+
+    <!-- CHAT -->
+    <section id="chat">
+
+      <div id="chatHeader">No Room Selected</div>
+      <div id="roomInfo"></div>
+
+      <div id="messages" class="messages"></div>
+
+      <div id="chatBottomWrapper">
+
+        <!-- REPLY BAR (FIXED - IMPORTANT) -->
+        <div id="replyBar" style="display:none;"></div>
+
+        <!-- TYPING -->
+        <div id="typingIndicator" class="typing-bubble hidden"></div>
+
+        <!-- INPUT -->
+        <div id="chatBottom">
+
+          <input id="msgInput" placeholder="Type a message...">
+
+          <div class="attachment-wrapper">
+            <button id="attachmentBtn">+</button>
+
+            <div id="attachmentMenu" class="attachment-menu">
+              <button id="imageBtn">Image</button>
+              <button id="documentBtn">Document</button>
+              <button id="linkBtn">Link</button>
+            </div>
+          </div>
+
+          <button id="sendMsg">Send</button>
+        </div>
+      </div>
+
+    </section>
+  </div>
+</div>
+
+<!-- FILE INPUTS -->
+<input type="file" id="imageInput" accept="image/*" hidden>
+<input type="file" id="documentInput" hidden>
+<input type="file" id="avatarInput" hidden>
+
+<!-- PROFILE MODAL (FIXED MISSING ELEMENTS) -->
+<div id="profileModal">
+  <div class="panel modal-content">
+
+    <span id="modalClose">&times;</span>
+
+    <img id="modalPhoto">
+
+    <input id="modalUsername" placeholder="Username">
+    <input id="modalNickname" placeholder="Nickname">
+    <input id="modalDOB" type="date">
+
+    <!-- ❗ missing in your HTML but used in JS -->
+    <div id="modalHeading"></div>
+    <div id="modalInstructions" class="muted"></div>
+    <span id="modalStatus" class="status-dot"></span>
+
+    <button id="modalSaveProfile">Save</button>
+  </div>
+</div>
+
+<!-- IMAGE VIEWER -->
+<div id="imageViewer" class="image-viewer hidden">
+  <span id="imageViewerClose">&times;</span>
+  <img id="imageViewerImg">
+</div>
+
+<!-- USERS PANEL (FIXED IDS MATCH JS) -->
+<div id="usersPanelBtn">👥</div>
+
+<div id="usersPanelMenu">
+  <div class="users-header">
+    <h3>Users</h3>
+    <button id="closeUsersPanel">&times;</button>
+  </div>
+
+  <div id="liveUsersList"></div>
+</div>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>
-
