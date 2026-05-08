@@ -264,6 +264,7 @@ button {
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
   min-width: 120px;
   max-width: 320px;
+  position: relative;
 }
 
 .msg-name {
@@ -324,7 +325,19 @@ button {
   transform: translateY(0);
 }
 
+/* MSG MENU*/
 
+.msg-menu-btn {
+  position: absolute;
+  top: 4px;
+  right: 6px;   /* default (other user) */
+  cursor: pointer;
+}
+
+.mine .msg-menu-btn {
+  right: auto;
+  left: 6px;
+}
 
 /* ====================== CHAT BOTTOM ====================== */
 #chatBottom {
@@ -472,47 +485,58 @@ button {
 
 /* ====================== PROFILE MODAL ====================== */
 #profileModal {
-  display: none;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
+  display: none;
   justify-content: center;
   align-items: center;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0,0,0,0.7);
   z-index: 99999;
 }
 
 #profileModal.show {
   display: flex;
-  animation: fadeIn .3s ease;
 }
 
-#profileModal .panel {
-  position: relative;
+#profileModal .modal-content {
+  width: 360px;
   background: var(--panel);
   padding: 20px;
   border-radius: 12px;
-  width: 360px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  position: relative;
   color: #e8f0f2;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.6);
 }
 
-/* Center only the avatar */
-#modalPhoto {
-  display: block;
-  margin: 0 auto;  /* centers the avatar horizontally */
+/* close button */
+#modalClose {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font-size: 24px;
   cursor: pointer;
 }
 
-/* Center ONLY the avatar in profile modal */
-.modal-avatar {
-  text-align: center; /* centers avatar wrapper */
+/* avatar */
+#modalPhoto {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 10px auto;
+  border: 2px solid var(--accent);
 }
 
-.modal-avatar .avatar-wrapper {
-  display: inline-block; /* allows centering */
+/* inputs */
+#profileModal input {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  background: #06151b;
+  color: #fff;
 }
 
 
@@ -576,6 +600,7 @@ button {
   color: #041018;
   font-weight: 600;
   width: 100%;
+  align-self: center;
 }
 
 .save-btn:hover {
@@ -782,6 +807,20 @@ button {
   color: #888;
 }
 
+.room-row button {
+  background: transparent !important;
+  color: #eaf3f5;
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  width: 40%;
+  cursor: pointer;
+}
+
+.room-row button:hover {
+  background: rgba(37, 211, 102, 0.08);
+}
 
 /* ====================== CHAT IMAGES ====================== */
 .chat-image {
@@ -902,21 +941,6 @@ a.chat-document:hover {
 }
 
 
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 10000;
-  left: 0;
-  top: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0,0,0,0.8);
-
-  display: flex;
-  justify-content: center; /* horizontal center */
-  align-items: center;     /* vertical center */
-  overflow: hidden;        /* prevent scrolling */
-}
 
 .modal.show {
   display: flex;
@@ -1096,4 +1120,77 @@ a.chat-document:hover {
   border-radius: 50% !important;
   object-fit: cover !important;
   cursor: pointer;
+}
+
+/* ---------------- REPLY BUBBLE ---------------- */
+#replyBar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e1e1e;
+  color: #fff;
+  padding: 8px 10px;
+  border-left: 3px solid #6c5ce7; /* theme accent */
+  font-size: 13px;
+  gap: 10px;
+}
+
+#replyBar b {
+  color: #6c5ce7;
+}
+
+#cancelReply {
+  cursor: pointer;
+  color: #ff4d4d;
+  font-weight: bold;
+}
+
+/* ===== REPLY MESSAGE STYLE ===== */
+.reply-box {
+  background: #2a2a2a;
+  border-left: 3px solid #6c5ce7;
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.reply-name {
+  font-weight: bold;
+  color: #23b21c;
+  font-size: 11px;
+}
+
+.reply-text {
+  color: #ccc;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.reply-box {
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.reply-box:hover {
+  transform: scale(1.02);
+  opacity: 1;
+}
+
+/*REACTION*/
+
+.reaction-box {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+
+.reaction-item {
+  background: #2a2a2a;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 12px;
 }
