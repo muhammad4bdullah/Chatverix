@@ -59,6 +59,21 @@ button {
 .google-btn img {
   width:18px;
 }
+
+.signup-text {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #aaa;
+}
+
+.signup-text a {
+  color: #25D366;
+  text-decoration: none;
+}
+
+.signup-text a:hover {
+  text-decoration: underline;
+}
 </style>
 </head>
 
@@ -79,7 +94,16 @@ button {
     <input id="password" type="password" placeholder="Password" required>
     <button class="primary">Login</button>
   </form>
+
+  <!-- ✅ ADDED PART -->
+  <p class="signup-text">
+    Don’t have an account?
+    <a href="signup.html">Sign up</a>
+  </p>
+
 </div>
+
+
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -136,7 +160,6 @@ document.getElementById("loginForm").onsubmit = async (e) => {
     }
 
     await signInWithEmailAndPassword(auth, email, pass);
-
     location.href = "index.html";
 
   } catch (e) {
