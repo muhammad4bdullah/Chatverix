@@ -116,6 +116,10 @@ document.addEventListener("click", () => {
 });
 
 
+
+
+
+
 function showReplyBar(data) {
   const bar = document.getElementById("replyBar");
 
@@ -137,22 +141,40 @@ function showReplyBar(data) {
   };
 }
 
-function showReactionBar(msgID) {
-  // 🔥 ALWAYS fully reset old bar
-  if (reactionBar) {
-    reactionBar.remove();
-    reactionBar = null;
-  }
+// ------------------------ AUTO DELETE ROOMS (24h) ------------------------
+async function cleanupOldRooms() {
+  const snap = await get(ref(db, "rooms"));
+  if (!snap.exists()) return;
+
+  const now = Date.now();
+  const MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+
+  snap.forEach(async (roomSnap) => {
+    const room = roomSnap.val();
+
+    if (!room.createdAt) return;
+
+    if (now - room.createdAt > MAX_AGE) {
+      const roomID = roomSnap.key;
+
+      await remove(ref(db, `rooms/${roomID}`));
+      await remove(ref(db, `members/${roomID}`));
+      await remove(ref(db, `messages/${roomID}`));
+      await remove(ref(db, `kicked/${roomID}`));
+
+      console.log("Deleted expired room:", roomID);
+    }
+  });
+}
+
+function showReactionBar(msgID, event) {
+  const old = document.getElementById("reactionBar");
+  if (old) old.remove();
 
   const bar = document.createElement("div");
-  reactionBar = bar;
-
   bar.id = "reactionBar";
 
   bar.style.position = "fixed";
-  bar.style.bottom = "90px";
-  bar.style.left = "50%";
-  bar.style.transform = "translateX(-50%)";
   bar.style.background = "#1e1e1e";
   bar.style.padding = "10px 12px";
   bar.style.borderRadius = "14px";
@@ -161,39 +183,54 @@ function showReactionBar(msgID) {
   bar.style.zIndex = "99999";
   bar.style.boxShadow = "0 10px 25px rgba(0,0,0,0.4)";
 
+  // ⭐ POSITION NEAR CLICK
+  const x = event.clientX;
+  const y = event.clientY;
+
+  bar.style.left = `${x}px`;
+  bar.style.top = `${y - 60}px`;
+
   REACTIONS.forEach(emoji => {
     const btn = document.createElement("span");
     btn.textContent = emoji;
 
     btn.style.fontSize = "24px";
     btn.style.cursor = "pointer";
-    btn.style.transition = "transform 0.15s ease";
+    btn.style.padding = "4px";
+    btn.style.borderRadius = "8px";
+    btn.style.transition = "0.15s";
+
+    // ⭐ FETCH CURRENT REACTION (FOR HIGHLIGHT)
+    const msgRef = ref(db, `messages/${activeRoom}/${msgID}`);
+
+    get(msgRef).then(snap => {
+      const data = snap.val();
+      const current = data?.reactions?.[currentUser.uid];
+
+      // ⭐ highlight selected reaction
+      if (current === emoji) {
+        btn.style.background = "rgba(108,92,231,0.4)";
+        btn.style.transform = "scale(1.2)";
+      }
+    });
 
     btn.onclick = async (e) => {
       e.stopPropagation();
 
-      btn.style.transform = "scale(1.8)";
-      setTimeout(() => btn.style.transform = "scale(1)", 150);
-
-      const msgRef = ref(db, `messages/${activeRoom}/${msgID}`);
       const snap = await get(msgRef);
       const data = snap.val();
 
       let reactions = data.reactions || {};
 
       if (reactions[currentUser.uid] === emoji) {
-        delete reactions[currentUser.uid];
+        delete reactions[currentUser.uid]; // remove
       } else {
-        reactions[currentUser.uid] = emoji;
+        reactions[currentUser.uid] = emoji; // set/change
       }
 
       await update(msgRef, { reactions });
 
-      // cleanup
-      if (reactionBar) {
-        reactionBar.remove();
-        reactionBar = null;
-      }
+      bar.remove();
     };
 
     bar.appendChild(btn);
@@ -201,17 +238,16 @@ function showReactionBar(msgID) {
 
   document.body.appendChild(bar);
 
-  // ✅ safe outside click handler (NO duplication)
-  const closeHandler = (e) => {
-    if (reactionBar && !reactionBar.contains(e.target)) {
-      reactionBar.remove();
-      reactionBar = null;
-      document.removeEventListener("click", closeHandler);
+  // close on outside click
+  const close = (e) => {
+    if (!bar.contains(e.target)) {
+      bar.remove();
+      document.removeEventListener("click", close);
     }
   };
 
   setTimeout(() => {
-    document.addEventListener("click", closeHandler);
+    document.addEventListener("click", close);
   }, 50);
 }
 
@@ -277,6 +313,8 @@ onAuthStateChanged(auth, async user => {
   }
 
   currentUser = user;
+cleanupOldRooms();
+setInterval(cleanupOldRooms, 60 * 60 * 1000); // every 1 hour check
 
   // ✅ SET USER ONLINE
   setUserOnline(user.uid);
@@ -927,10 +965,24 @@ function listenMessages(roomID) {
       return;
     }
 
+    let lastMyMessageId = null;
+    let lastMessageId = null;
+
     snap.forEach(m => {
       const d = m.val();
       const msgID = m.key;
       const isMine = d.uid === currentUser.uid;
+
+      lastMessageId = m.key;
+
+      if (d.uid === currentUser.uid) {
+        lastMyMessageId = m.key;
+      }
+
+      // ---------------- 👁️ MARK AS SEEN ----------------
+      if (d.uid !== currentUser.uid) {
+        set(ref(db, `messages/${roomID}/${msgID}/seenBy/${currentUser.uid}`), true);
+      }
 
       // SYSTEM MESSAGE
       if (d.type === "system") {
@@ -962,44 +1014,33 @@ function listenMessages(roomID) {
       bubble.style.position = "relative";
       bubble.style.maxWidth = "75%";
 
-      // ---------------- REPLY BUBBLE ----------------
-// ---------------- REPLY UI ----------------
-       if (d.replyTo) {
-  const replyBox = document.createElement("div");
-  replyBox.className = "reply-box";
+      // ---------------- REPLY ----------------
+      if (d.replyTo) {
+        const replyBox = document.createElement("div");
+        replyBox.className = "reply-box";
 
-  replyBox.onclick = () => {
-    const target = document.getElementById(`msg-${d.replyTo.msgID}`);
-    if (!target) return;
+        replyBox.onclick = () => {
+          const target = document.getElementById(`msg-${d.replyTo.msgID}`);
+          if (!target) return;
 
-    target.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
 
-    // highlight effect
-    target.style.transition = "all 0.3s ease";
-    target.style.background = "rgba(108, 92, 231, 0.25)";
-    target.style.borderRadius = "8px";
+          target.style.transition = "all 0.3s ease";
+          target.style.background = "rgba(108, 92, 231, 0.25)";
+          target.style.borderRadius = "8px";
 
-    setTimeout(() => {
-      target.style.background = "transparent";
-    }, 1200);
-  };
+          setTimeout(() => {
+            target.style.background = "transparent";
+          }, 1200);
+        };
 
-  const name = document.createElement("div");
-  name.className = "reply-name";
-  name.textContent = d.replyTo.nickname;
+        replyBox.innerHTML = `
+          <div class="reply-name">${d.replyTo.nickname}</div>
+          <div class="reply-text">${d.replyTo.text}</div>
+        `;
 
-  const text = document.createElement("div");
-  text.className = "reply-text";
-  text.textContent = d.replyTo.text;
-
-  replyBox.appendChild(name);
-  replyBox.appendChild(text);
-
-  bubble.appendChild(replyBox);
-}
+        bubble.appendChild(replyBox);
+      }
 
       // NAME
       const name = document.createElement("div");
@@ -1023,70 +1064,89 @@ function listenMessages(roomID) {
         a.href = d.text;
         a.target = "_blank";
         a.textContent = d.text;
+        a.className = "chat-link";
         content.appendChild(a);
 
       } else if (d.type === "file") {
-        content.innerHTML = `📄 ${d.text}`;
+        const fileURL = d.fileData;
+
+        const wrapper = document.createElement("a");
+        wrapper.href = "#";
+        wrapper.className = "chat-document";
+
+        wrapper.onclick = (e) => {
+          e.preventDefault();
+          if (!fileURL) return alert("File not found");
+
+          const a = document.createElement("a");
+          a.href = fileURL;
+          a.download = d.text;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        };
+
+        wrapper.innerHTML = `
+          <div class="doc-icon">📄</div>
+          <div class="doc-info">
+            <div class="doc-name">${d.text}</div>
+            <div class="doc-size">Click to download</div>
+          </div>
+        `;
+
+        content.appendChild(wrapper);
+
       } else {
-        content.textContent = d.text;
+        const text = document.createElement("div");
+        text.textContent = d.text || "[unsupported message]";
+        content.appendChild(text);
       }
 
       bubble.appendChild(content);
 
-      // ---------------- REACTIONS DISPLAY ----------------
-if (d.reactions) {
-  const reactBox = document.createElement("div");
-  reactBox.className = "reaction-box";
+      // ---------------- REACTIONS ----------------
+      if (d.reactions) {
+        const reactBox = document.createElement("div");
+        reactBox.className = "reaction-box";
 
-  const counts = {};
+        const counts = {};
+        Object.values(d.reactions).forEach(r => {
+          counts[r] = (counts[r] || 0) + 1;
+        });
 
-  Object.values(d.reactions).forEach(r => {
-    counts[r] = (counts[r] || 0) + 1;
-  });
+        Object.entries(counts).forEach(([emoji, count]) => {
+          const span = document.createElement("span");
+          span.className = "reaction-item";
+          span.textContent = `${emoji} ${count}`;
+          reactBox.appendChild(span);
+        });
 
-  Object.entries(counts).forEach(([emoji, count]) => {
-    const span = document.createElement("span");
-    span.className = "reaction-item";
-    span.textContent = `${emoji} ${count}`;
-    reactBox.appendChild(span);
-  });
+        bubble.appendChild(reactBox);
+      }
 
-  bubble.appendChild(reactBox);
-}
-
-      // TIME + EDITED LABEL
+      // TIME
       const time = document.createElement("div");
       time.className = "msg-time";
 
-      const timeText = new Date(d.time).toLocaleTimeString();
+      const timeText = new Date(d.time).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      });
 
-      if (d.edited) {
-        time.innerHTML = `${timeText} <span style="font-size:10px;opacity:0.7;">(EDITED)</span>`;
-      } else {
-        time.textContent = timeText;
-      }
+      time.textContent = d.edited
+        ? `${timeText} (EDITED)`
+        : timeText;
 
       bubble.appendChild(time);
 
-      // ---------------- 3 DOT BUTTON ----------------
+      // ---------------- 3 DOT MENU ----------------
       const menuBtn = document.createElement("div");
       menuBtn.innerHTML = "⋮";
       menuBtn.style.cursor = "pointer";
       menuBtn.style.fontSize = "18px";
       menuBtn.style.padding = "4px 6px";
-      menuBtn.style.userSelect = "none";
 
-      const offset = "2px";
-
-      if (isMine) {
-        menuBtn.style.order = "0";
-        menuBtn.style.marginRight = offset;
-      } else {
-        menuBtn.style.order = "2";
-        menuBtn.style.marginLeft = offset;
-      }
-
-      // ---------------- MENU ----------------
       const menu = document.createElement("div");
       menu.style.position = "fixed";
       menu.style.background = "#1e1e1e";
@@ -1118,20 +1178,19 @@ if (d.reactions) {
 
       add("Copy", () => navigator.clipboard.writeText(d.text || ""));
 
-      add("React", () => {
-  showReactionBar(msgID);
-});
+      add("React", () => showReactionBar(msgID, window.event));
 
       add("Reply", () => {
-  currentReply = {
-    msgID: msgID,
-    text: d.text,
-    nickname: d.nickname || "User"
-  };
+        currentReply = {
+          msgID,
+          text: d.text,
+          nickname: d.nickname || "User"
+        };
+        showReplyBar(currentReply);
+      });
 
-  showReplyBar(currentReply);
-});
-      // ❌ NO "Delete for me" anymore
+      // ⭐ NEW: SEE WHO SAW THIS MESSAGE
+      add("Seen", () => openSeenOverlay(roomID, msgID));
 
       if (isMine) {
         add("Edit", async () => {
@@ -1146,15 +1205,11 @@ if (d.reactions) {
         });
 
         add("Delete", async () => {
-          // get username before deleting
-          const username = d.nickname || "User";
-
           await remove(ref(db, `messages/${roomID}/${msgID}`));
 
-          // system message
           await push(ref(db, `messages/${roomID}`), {
             type: "system",
-            text: ` Message deleted by <b>${username}</b>`,
+            text: `Message deleted by <b>${d.nickname}</b>`,
             time: Date.now()
           });
         });
@@ -1162,24 +1217,17 @@ if (d.reactions) {
 
       document.body.appendChild(menu);
 
-      // OPEN MENU
       menuBtn.onclick = (e) => {
         e.stopPropagation();
 
-        if (openMenu && openMenu !== menu) {
-          openMenu.style.display = "none";
-        }
-
         const rect = menuBtn.getBoundingClientRect();
-
         menu.style.top = rect.bottom + "px";
         menu.style.left = rect.left + "px";
-
         menu.style.display = "block";
         openMenu = menu;
       };
 
-      // BUILD ORDER
+      // BUILD MESSAGE
       if (isMine) {
         wrap.appendChild(menuBtn);
         wrap.appendChild(bubble);
@@ -1196,6 +1244,48 @@ if (d.reactions) {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   });
 }
+
+window.openSeenOverlay = async function(roomID, msgID) {
+  const overlay = document.getElementById("seenOverlay");
+  const list = document.getElementById("seenList");
+
+  overlay.classList.remove("hidden");
+  list.innerHTML = "Loading...";
+
+  const snap = await get(ref(db, `messages/${roomID}/${msgID}/seenBy`));
+
+  list.innerHTML = "";
+
+  if (!snap.exists()) {
+    list.innerHTML = "<p>No one has seen this yet</p>";
+    return;
+  }
+
+  const data = snap.val();
+
+  for (const uid of Object.keys(data)) {
+    const userSnap = await get(ref(db, `users/${uid}`));
+    const user = userSnap.exists() ? userSnap.val() : { nickname: "User" };
+
+    const div = document.createElement("div");
+    div.style.display = "flex";
+    div.style.alignItems = "center";
+    div.style.gap = "10px";
+    div.style.marginBottom = "8px";
+
+    div.innerHTML = `
+      <img src="${user.photoURL || DEFAULT_AVATAR}" 
+           style="width:30px;height:30px;border-radius:50%">
+      <span>${user.nickname}</span>
+    `;
+
+    list.appendChild(div);
+  }
+};
+
+window.closeSeenOverlay = function() {
+  document.getElementById("seenOverlay").classList.add("hidden");
+};
 
 // ------------------------ SEND MESSAGE ------------------------
 sendMsg.onclick = sendMessage;
@@ -1216,14 +1306,12 @@ push(ref(db, `messages/${activeRoom}`), {
   text: text,
   time: Date.now(),
   type: "text",
-
   replyTo: currentReply ? {
     msgID: currentReply.msgID,
     text: currentReply.text,
     nickname: currentReply.nickname
   } : null,
-
-  reactions: {} // ⭐ ADD THIS LINE
+  reactions: {}
 });
 
   currentReply = null;
@@ -1581,16 +1669,25 @@ attachmentFileInput.addEventListener("change", (e) => {
     };
     reader.readAsDataURL(file);
   } else {
-    // Push generic file
+  const reader = new FileReader();
+
+  reader.onload = () => {
     push(ref(db, `messages/${activeRoom}`), {
       uid: currentUser.uid,
       nickname: userNameDisplay.innerText,
       photoURL: userPhoto.src,
+
       text: file.name,
+      fileData: reader.result, // base64 file
+      fileType: file.type,
+
       type: "file",
       time: Date.now()
     });
-  }
+  };
+
+  reader.readAsDataURL(file);
+}
 
   attachmentFileInput.value = ""; // reset input
 });
@@ -1747,3 +1844,31 @@ document.addEventListener("DOMContentLoaded", () => {
     usersPanelMenu.classList.remove("open");
   });
 });
+
+const roomInfoWrapper = document.getElementById("roomInfoWrapper");
+const roomInfoToggle = document.getElementById("roomInfoToggle");
+
+let roomInfoOpen = false;
+
+roomInfoToggle.onclick = () => {
+  roomInfoOpen = !roomInfoOpen;
+
+  if (roomInfoOpen) {
+    roomInfoWrapper.classList.add("open");
+    roomInfoToggle.innerText = "▲";
+  } else {
+    roomInfoWrapper.classList.remove("open");
+    roomInfoToggle.innerText = "▼";
+  }
+};
+
+
+function updateChatLayout() {
+  const chat = document.getElementById("chat");
+
+  if (roomInfoOpen) {
+    chat.style.paddingTop = "0px";
+  } else {
+    chat.style.paddingTop = "0px";
+  }
+}
