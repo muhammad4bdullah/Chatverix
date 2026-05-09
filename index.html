@@ -75,21 +75,23 @@
     <section id="chat">
 
       <div id="chatHeader">No Room Selected</div>
-      <div id="roomInfo"></div>
+      <div id="roomInfoWrapper">
+  <div id="roomInfoToggle">▼</div>
+
+  <div id="roomInfoContent">
+    <div id="roomInfo"></div>
+  </div>
+</div>
 
       <div id="messages" class="messages"></div>
 
       <div id="chatBottomWrapper">
 
-        <!-- REPLY BAR (FIXED - IMPORTANT) -->
         <div id="replyBar" style="display:none;"></div>
 
-        <!-- TYPING -->
         <div id="typingIndicator" class="typing-bubble hidden"></div>
 
-        <!-- INPUT -->
         <div id="chatBottom">
-
           <input id="msgInput" placeholder="Type a message...">
 
           <div class="attachment-wrapper">
@@ -115,7 +117,7 @@
 <input type="file" id="documentInput" hidden>
 <input type="file" id="avatarInput" hidden>
 
-<!-- PROFILE MODAL (FIXED MISSING ELEMENTS) -->
+<!-- PROFILE MODAL -->
 <div id="profileModal">
   <div class="panel modal-content">
 
@@ -127,7 +129,6 @@
     <input id="modalNickname" placeholder="Nickname">
     <input id="modalDOB" type="date">
 
-    <!-- ❗ missing in your HTML but used in JS -->
     <div id="modalHeading"></div>
     <div id="modalInstructions" class="muted"></div>
     <span id="modalStatus" class="status-dot"></span>
@@ -142,7 +143,7 @@
   <img id="imageViewerImg">
 </div>
 
-<!-- USERS PANEL (FIXED IDS MATCH JS) -->
+<!-- USERS PANEL -->
 <div id="usersPanelBtn">👥</div>
 
 <div id="usersPanelMenu">
@@ -152,6 +153,15 @@
   </div>
 
   <div id="liveUsersList"></div>
+</div>
+
+<!-- ✅ NEW: SEEN OVERLAY (ADDED) -->
+<div id="seenOverlay" class="seen-overlay hidden">
+  <div class="seen-box">
+    <h3>Seen By</h3>
+    <div id="seenList"></div>
+    <button onclick="closeSeenOverlay()">Close</button>
+  </div>
 </div>
 
 <script type="module" src="app.js"></script>
