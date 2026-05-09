@@ -1194,3 +1194,62 @@ a.chat-document:hover {
   border-radius: 10px;
   font-size: 12px;
 }
+
+.seen-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999999;
+}
+
+.seen-box {
+  background: #1e1e1e;
+  padding: 20px;
+  border-radius: 12px;
+  width: 300px;
+  color: white;
+}
+
+.hidden {
+  display: none;
+}
+
+
+#roomInfoWrapper {
+  background: #1e1e1e;
+  border-bottom: 1px solid #333;
+  overflow: hidden;
+}
+
+/* toggle arrow */
+#roomInfoToggle {
+  cursor: pointer;
+  padding: 6px;
+  text-align: center;
+  color: #aaa;
+  user-select: none;
+  font-size: 14px;
+  transition: transform 0.3s ease;
+}
+
+/* animated container */
+#roomInfoContent {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease, padding 0.35s ease;
+  padding: 0 10px;
+}
+
+/* open state */
+#roomInfoWrapper.open #roomInfoContent {
+  max-height: 200px; /* adjust if needed */
+  padding: 10px;
+}
+
+/* rotate arrow */
+#roomInfoWrapper.open #roomInfoToggle {
+  transform: rotate(180deg);
+}
