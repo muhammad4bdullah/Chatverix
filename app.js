@@ -1,7 +1,7 @@
 // ------------------------ IMPORTS ------------------------
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getDatabase, ref, set, push, onValue, get, remove, update, onDisconnect } 
+import { getDatabase, ref, set, push, onValue, get, remove, update, onDisconnect, off} 
 from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 
@@ -33,6 +33,7 @@ let usersCache = {}; // Cache for user data to avoid re-fetching
 let myStatusRef = null;
 let activeRoomCreator = null;
 let activeRoomID = null; // track current room
+let messagesListener = null;
 
 // ------------------------ UI ELEMENTS ------------------------
 const mainScreen = document.getElementById("main");
@@ -957,7 +958,15 @@ window.openRoom = async function (roomID) {
 
 // ------------------------ LISTEN MESSAGES ------------------------
 function listenMessages(roomID) {
-  onValue(ref(db, `messages/${roomID}`), snap => {
+
+  // 🔥 kill old listener first
+  if (messagesListener) {
+    messagesListener(); // this is the unsubscribe function
+  }
+
+  const msgRef = ref(db, `messages/${roomID}`);
+
+  messagesListener = onValue(msgRef, snap => {
     messagesEl.innerHTML = "";
 
     if (!snap.exists()) {
