@@ -1,169 +1,600 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Chatverix</title>
+
   <link rel="icon" type="image/png" href="FAVICON.png?v=3">
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<!-- MAIN APP -->
-<div id="main" class="screen" style="display:flex; flex-direction:column;">
+<div id="main" class="screen">
 
-  <!-- PROFILE BAR -->
+  <!-- ================= HEADER ================= -->
   <header id="profileBar">
-    <div class="avatar-wrapper">
-      <img id="userPhoto" class="avatar" src="">
-      <span id="userStatus" class="status-dot offline"></span>
+
+    <div class="brand-mobile">
+      <span class="brand-mark">C</span>
+      <span>Chatverix</span>
     </div>
 
-    <div class="profile-info">
-      <div id="userNameDisplay" class="username">User</div>
-      <div id="userEmail" class="muted small">user@example.com</div>
+    <div class="profile-trigger" id="profileTrigger">
+
+      <div class="avatar-wrapper">
+        <img id="userPhoto" class="avatar" src="" alt="Profile">
+        <span id="userStatus" class="status-dot offline"></span>
+      </div>
+
+      <div class="profile-info">
+        <div id="userNameDisplay" class="username">User</div>
+        <div id="userEmail" class="muted small">user@example.com</div>
+      </div>
+
     </div>
 
-    <div class="spacer"></div>
-    <button id="btnLogout" class="ghost">Logout</button>
+    <div class="header-center">
+      <div class="header-brand">
+        <span class="brand-mark">C</span>
+        <span>Chatverix</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button id="mobileRoomsBtn" class="icon-btn" title="Rooms">
+        ☰
+      </button>
+
+      <button id="btnLogout" class="ghost logout-btn">
+        <span>Logout</span>
+        <span class="logout-icon">↗</span>
+      </button>
+    </div>
+
   </header>
 
+
+  <!-- ================= APP ================= -->
   <div id="appContainer">
 
-    <!-- SIDEBAR -->
+    <!-- ================= SIDEBAR ================= -->
     <aside id="sidebar">
 
-      <div class="sidebar-actions">
-        <button id="btnShowCreate" class="small">+ Create Room</button>
-        <button id="btnShowJoin" class="small">→ Join Room</button>
+      <div class="sidebar-top">
+
+        <div class="sidebar-title-row">
+          <div>
+            <div class="eyebrow">MESSENGER</div>
+            <h2>Your Rooms</h2>
+          </div>
+
+          <div class="room-count" id="roomCount">0</div>
+        </div>
+
+
+        <div class="sidebar-actions">
+
+          <button id="btnShowCreate" class="action-btn primary">
+            <span class="action-icon">＋</span>
+            <span>Create Room</span>
+          </button>
+
+          <button id="btnShowJoin" class="action-btn secondary">
+            <span class="action-icon">↗</span>
+            <span>Join Room</span>
+          </button>
+
+        </div>
+
+
+        <!-- CREATE -->
+        <div id="createRoomSection" class="panel room-form hidden">
+
+          <div class="form-title">
+            <span>Create a room</span>
+            <button class="form-close" data-close-form="create">×</button>
+          </div>
+
+          <input
+            id="roomNameCreate"
+            placeholder="Room name"
+            maxlength="40"
+            autocomplete="off"
+          >
+
+          <input
+            id="roomPASScreate"
+            placeholder="Password • 6-12 lowercase chars"
+            type="password"
+            maxlength="12"
+            autocomplete="new-password"
+          >
+
+          <button id="btnCreate" class="form-submit">
+            Create Room
+          </button>
+
+        </div>
+
+
+        <!-- JOIN -->
+        <div id="joinRoomSection" class="panel room-form hidden">
+
+          <div class="form-title">
+            <span>Join a room</span>
+            <button class="form-close" data-close-form="join">×</button>
+          </div>
+
+          <input
+            id="roomIDjoin"
+            placeholder="Room ID"
+            maxlength="8"
+            inputmode="numeric"
+            autocomplete="off"
+          >
+
+          <input
+            id="roomPASSjoin"
+            placeholder="Room password"
+            type="password"
+            maxlength="12"
+            autocomplete="off"
+          >
+
+          <button id="btnJoin" class="form-submit">
+            Join Room
+          </button>
+
+        </div>
+
+
+        <!-- FILTER -->
+        <div class="room-filter">
+
+          <button id="filterAll" class="filter-btn active">
+            All
+          </button>
+
+          <button id="filterCreated" class="filter-btn">
+            Created
+          </button>
+
+          <button id="filterJoined" class="filter-btn">
+            Joined
+          </button>
+
+        </div>
+
+
+        <!-- SEARCH -->
+        <div class="room-search">
+
+          <span class="search-icon">⌕</span>
+
+          <input
+            id="roomSearchInput"
+            placeholder="Search rooms..."
+            autocomplete="off"
+          >
+
+          <button id="clearRoomSearch" class="search-clear hidden">
+            ×
+          </button>
+
+        </div>
+
       </div>
 
-      <!-- CREATE -->
-      <div id="createRoomSection" class="panel hidden">
-        <input id="roomNameCreate" placeholder="Room Name">
-        <input id="roomPASScreate" placeholder="Password">
-        <button id="btnCreate">Create</button>
+
+      <div class="room-list-heading">
+        <span>Rooms</span>
+        <span class="muted tiny">24h expiry</span>
       </div>
 
-      <!-- JOIN -->
-      <div id="joinRoomSection" class="panel hidden">
-        <input id="roomIDjoin" placeholder="Room ID">
-        <input id="roomPASSjoin" placeholder="Password">
-        <button id="btnJoin">Join</button>
-      </div>
-
-      <!-- FILTER -->
-      <div class="room-filter">
-        <button id="filterAll" class="filter-btn active">All</button>
-        <button id="filterCreated" class="filter-btn">Created</button>
-        <button id="filterJoined" class="filter-btn">Joined</button>
-      </div>
-
-      <!-- SEARCH -->
-      <div class="room-search">
-        <input id="roomSearchInput" placeholder="Search rooms...">
-      </div>
-
-      <h3>Your Rooms</h3>
       <div id="roomList"></div>
-      <div id="noRooms" class="muted">No rooms yet</div>
+
+      <div id="noRooms" class="empty-rooms">
+        <div class="empty-icon">◌</div>
+        <strong>No rooms yet</strong>
+        <span>Create or join a room to start chatting.</span>
+      </div>
+
+
+      <div class="sidebar-footer">
+        <span class="online-pulse"></span>
+        Chatverix is live
+      </div>
 
     </aside>
 
-    <!-- CHAT -->
+
+    <!-- ================= CHAT ================= -->
     <section id="chat">
 
-      <div id="chatHeader">No Room Selected</div>
-      <div id="roomInfoWrapper">
-  <div id="roomInfoToggle">▼</div>
+      <!-- EMPTY CHAT -->
+      <div id="emptyChatState" class="empty-chat-state">
 
-  <div id="roomInfoContent">
-    <div id="roomInfo"></div>
-  </div>
-</div>
+        <div class="empty-chat-logo">
+          <span>C</span>
+        </div>
 
-      <div id="messages" class="messages"></div>
+        <h1>Welcome to Chatverix</h1>
 
-      <div id="chatBottomWrapper">
+        <p>
+          Select a room from the left to start chatting.
+        </p>
 
-        <div id="replyBar" style="display:none;"></div>
+        <div class="empty-features">
+          <span>💬 Real-time chat</span>
+          <span>🔒 Private rooms</span>
+          <span>⚡ Live presence</span>
+        </div>
 
-        <div id="typingIndicator" class="typing-bubble hidden"></div>
+      </div>
 
-        <div id="chatBottom">
-          <input id="msgInput" placeholder="Type a message...">
 
-          <div class="attachment-wrapper">
-            <button id="attachmentBtn">+</button>
+      <!-- CHAT CONTENT -->
+      <div id="chatContent" class="chat-content hidden">
 
-            <div id="attachmentMenu" class="attachment-menu">
-              <button id="imageBtn">Image</button>
-              <button id="documentBtn">Document</button>
-              <button id="linkBtn">Link</button>
+        <div id="chatHeaderBar">
+
+          <div class="chat-room-avatar">
+            <span id="chatRoomInitial">C</span>
+          </div>
+
+          <div class="chat-room-details">
+            <div id="chatHeader">No Room</div>
+
+            <div class="chat-room-subtitle">
+              <span class="mini-online"></span>
+              <span id="chatRoomStatus">Room active</span>
             </div>
           </div>
 
-          <button id="sendMsg">Send</button>
+          <div class="chat-header-actions">
+
+            <button
+              id="roomInfoToggle"
+              class="header-icon-btn"
+              title="Room information"
+            >
+              ⓘ
+            </button>
+
+            <button
+              id="usersPanelBtn"
+              class="header-icon-btn"
+              title="Room members"
+            >
+              👥
+            </button>
+
+          </div>
+
         </div>
+
+
+        <!-- ROOM INFO -->
+        <div id="roomInfoWrapper">
+
+          <div id="roomInfoContent">
+
+            <div class="room-info-grid">
+
+              <div class="room-info-item">
+                <span class="info-label">ROOM NAME</span>
+                <span id="roomInfoName">—</span>
+              </div>
+
+              <div class="room-info-item">
+                <span class="info-label">ROOM ID</span>
+                <span id="roomInfoID">—</span>
+              </div>
+
+              <div class="room-info-item">
+                <span class="info-label">PASSWORD</span>
+                <span id="roomInfoPassword">—</span>
+              </div>
+
+              <div class="room-info-item room-url-item">
+                <span class="info-label">INVITE LINK</span>
+
+                <div class="room-link-row">
+                  <input id="roomInfoURL" readonly>
+                  <button id="copyRoomLinkBtn">
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- MESSAGES -->
+        <div id="messages" class="messages">
+
+          <div class="center muted">
+            No messages
+          </div>
+
+        </div>
+
+
+        <!-- BOTTOM -->
+        <div id="chatBottomWrapper">
+
+          <div id="replyBar"></div>
+
+          <div id="typingIndicator" class="typing-bubble hidden"></div>
+
+
+          <div id="chatBottom">
+
+            <div class="composer-left">
+
+              <div class="attachment-wrapper">
+
+                <button
+                  id="attachmentBtn"
+                  class="composer-icon"
+                  title="Attach"
+                >
+                  ＋
+                </button>
+
+                <div id="attachmentMenu" class="attachment-menu">
+
+                  <button id="imageBtn">
+                    <span>🖼️</span>
+                    <div>
+                      <strong>Image</strong>
+                      <small>Send a picture</small>
+                    </div>
+                  </button>
+
+                  <button id="documentBtn">
+                    <span>📄</span>
+                    <div>
+                      <strong>Document</strong>
+                      <small>Send a file</small>
+                    </div>
+                  </button>
+
+                  <button id="linkBtn">
+                    <span>🔗</span>
+                    <div>
+                      <strong>Link</strong>
+                      <small>Share a URL</small>
+                    </div>
+                  </button>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <div class="message-input-wrap">
+
+              <textarea
+                id="msgInput"
+                placeholder="Write a message..."
+                rows="1"
+                autocomplete="off"
+              ></textarea>
+
+              <span class="input-hint">
+                Enter to send
+              </span>
+
+            </div>
+
+
+            <button
+              id="sendMsg"
+              class="send-button"
+              title="Send message"
+            >
+              <span>➤</span>
+            </button>
+
+          </div>
+
+        </div>
+
       </div>
 
     </section>
+
   </div>
+
 </div>
 
-<!-- FILE INPUTS -->
-<input type="file" id="imageInput" accept="image/*" hidden>
-<input type="file" id="documentInput" hidden>
-<input type="file" id="avatarInput" hidden>
 
-<!-- PROFILE MODAL -->
+<!-- ================= FILE INPUTS ================= -->
+<input
+  type="file"
+  id="imageInput"
+  accept="image/*"
+  hidden
+>
+
+<input
+  type="file"
+  id="documentInput"
+  hidden
+>
+
+<input
+  type="file"
+  id="avatarInput"
+  accept="image/*"
+  hidden
+>
+
+
+<!-- ================= PROFILE MODAL ================= -->
 <div id="profileModal">
+
+  <div class="modal-backdrop"></div>
+
   <div class="panel modal-content">
 
-    <span id="modalClose">&times;</span>
+    <button id="modalClose" class="modal-close">
+      ×
+    </button>
 
-    <img id="modalPhoto">
+    <div class="modal-header">
 
-    <input id="modalUsername" placeholder="Username">
-    <input id="modalNickname" placeholder="Nickname">
-    <input id="modalDOB" type="date">
+      <div class="modal-avatar-wrapper">
 
-    <div id="modalHeading"></div>
-    <div id="modalInstructions" class="muted"></div>
-    <span id="modalStatus" class="status-dot"></span>
+        <img id="modalPhoto" alt="Profile">
 
-    <button id="modalSaveProfile">Save</button>
+        <button id="changeAvatarButton">
+          ✎
+        </button>
+
+      </div>
+
+      <div>
+        <div class="eyebrow">PROFILE</div>
+        <h2 id="modalHeading">Edit Profile</h2>
+        <div id="modalStatusRow">
+          <span id="modalStatus" class="status-dot offline"></span>
+          <span id="modalStatusText">Offline</span>
+        </div>
+      </div>
+
+    </div>
+
+
+    <div class="modal-fields">
+
+      <label>
+        Username
+
+        <input
+          id="modalUsername"
+          placeholder="Username"
+          maxlength="16"
+        >
+
+      </label>
+
+
+      <label>
+        Nickname
+
+        <input
+          id="modalNickname"
+          placeholder="Nickname"
+          maxlength="30"
+        >
+
+      </label>
+
+
+      <label>
+        Date of birth
+
+        <input
+          id="modalDOB"
+          type="date"
+        >
+
+      </label>
+
+    </div>
+
+
+    <div id="modalInstructions" class="modal-note">
+      Username changes are limited to once every 14 days.
+      Nickname changes are limited to once every 3 days.
+    </div>
+
+
+    <button id="modalSaveProfile" class="form-submit">
+      Save Changes
+    </button>
+
   </div>
+
 </div>
 
-<!-- IMAGE VIEWER -->
+
+<!-- ================= IMAGE VIEWER ================= -->
 <div id="imageViewer" class="image-viewer hidden">
-  <span id="imageViewerClose">&times;</span>
-  <img id="imageViewerImg">
+
+  <button id="imageViewerClose" class="viewer-close">
+    ×
+  </button>
+
+  <img id="imageViewerImg" alt="Preview">
+
+  <button id="imageViewerDownload" class="viewer-download">
+    ↓ Download
+  </button>
+
 </div>
 
-<!-- USERS PANEL -->
-<div id="usersPanelBtn">👥</div>
 
+<!-- ================= USERS PANEL ================= -->
 <div id="usersPanelMenu">
-  <div class="users-header">
-    <h3>Users</h3>
-    <button id="closeUsersPanel">&times;</button>
+
+  <div class="users-panel-header">
+
+    <div>
+      <div class="eyebrow">ROOM</div>
+      <h3>Members</h3>
+    </div>
+
+    <button id="closeUsersPanel">
+      ×
+    </button>
+
   </div>
 
   <div id="liveUsersList"></div>
+
 </div>
 
-<!-- ✅ NEW: SEEN OVERLAY (ADDED) -->
+
+<!-- ================= SEEN OVERLAY ================= -->
 <div id="seenOverlay" class="seen-overlay hidden">
+
   <div class="seen-box">
-    <h3>Seen By</h3>
+
+    <div class="seen-header">
+      <div>
+        <div class="eyebrow">MESSAGE</div>
+        <h3>Seen By</h3>
+      </div>
+
+      <button onclick="closeSeenOverlay()">
+        ×
+      </button>
+    </div>
+
     <div id="seenList"></div>
-    <button onclick="closeSeenOverlay()">Close</button>
+
   </div>
+
 </div>
+
+
+<!-- ================= TOAST ================= -->
+<div id="toastContainer"></div>
+
 
 <script type="module" src="app.js"></script>
+
 </body>
 </html>
