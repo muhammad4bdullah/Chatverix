@@ -202,6 +202,12 @@ textarea {
   flex-shrink: 0;
 }
 
+#userStatus {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
+
 .avatar {
   width: 44px;
   height: 44px;
@@ -2096,6 +2102,14 @@ textarea {
 
 .send-button:active {
   transform: scale(0.92);
+}
+
+.send-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
+  filter: grayscale(0.35);
 }
 
 
