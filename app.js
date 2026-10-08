@@ -20,6 +20,8 @@ import {
   push,
   onValue,
   get,
+  query,
+  limitToLast,
   remove,
   update,
   onDisconnect,
@@ -87,6 +89,14 @@ let usersCache = {};
 let roomsListener = null;
 
 let messagesListener = null;
+
+let roomOpenRequest = 0;
+
+let messageRenderRequest = 0;
+
+let messageSnapshotRequest = 0;
+
+let sendingMessage = false;
 
 let typingListener = null;
 
@@ -408,6 +418,27 @@ function updateStatusDot(dotEl, state) {
 }
 
 
+
+onValue(
+  ref(db, ".info/connected"),
+  snap => {
+
+    const connected =
+      snap.val() === true;
+
+    chatRoomStatus.textContent =
+      connected
+        ? "Connected"
+        : "Offline - reconnecting...";
+
+    chatRoomStatus.classList.toggle(
+      "offline",
+      !connected
+    );
+
+  }
+);
+
 function updateModalStatus(state) {
 
   updateStatusDot(
@@ -478,9 +509,13 @@ onAuthStateChanged(
 
       loadRooms();
 
-      checkRoomLink();
+      const hasRoomLink =
+        await checkRoomLink();
 
-      if (activeRoom) {
+      if (
+        !hasRoomLink &&
+        activeRoom
+      ) {
 
         const roomSnap =
           await get(
@@ -1503,12 +1538,16 @@ function checkRoomLink() {
 
   if (roomID) {
 
-    handleRoomLink(
+    return handleRoomLink(
       roomID,
       roomPASS
+    ).then(
+      () => true
     );
 
   }
+
+  return false;
 
 }
 
@@ -2690,6 +2729,9 @@ async function openRoom(
 
   if (!roomID) return;
 
+  const requestID =
+    ++roomOpenRequest;
+
   const snap =
     await get(
       ref(
@@ -2718,6 +2760,14 @@ async function openRoom(
         `members/${roomID}/${currentUser.uid}`
       )
     );
+
+  if (
+    requestID !== roomOpenRequest
+  ) {
+
+    return;
+
+  }
 
   if (
     !memberSnap.exists()
@@ -2823,27 +2873,53 @@ function listenMessages(
   }
 
   const msgRef =
-    ref(
-      db,
-      `messages/${roomID}`
-    );
+      query(
+        ref(
+          db,
+          `messages/${roomID}`
+        ),
+        limitToLast(200)
+      );
+
+  const listenerRequest =
+    ++messageRenderRequest;
 
   messagesListener =
     onValue(
       msgRef,
       async snap => {
 
-        messagesEl.innerHTML =
-          "";
+        const snapshotRequest =
+          ++messageSnapshotRequest;
+
+        await Promise.resolve();
+
+        if (
+          listenerRequest !== messageRenderRequest ||
+          activeRoom !== roomID ||
+          snapshotRequest !== messageSnapshotRequest
+        ) {
+
+          return;
+
+        }
 
         if (!snap.exists()) {
 
-          messagesEl.innerHTML =
-            `
-              <div class="center muted">
-                No messages yet
-              </div>
-            `;
+          messagesEl.replaceChildren();
+
+          const emptyMessage =
+            document.createElement("div");
+
+          emptyMessage.className =
+            "center muted";
+
+          emptyMessage.textContent =
+            "No messages yet";
+
+          messagesEl.appendChild(
+            emptyMessage
+          );
 
           return;
 
@@ -2855,6 +2931,9 @@ function listenMessages(
         let hasMessages =
           false;
 
+        const renderedMessageIDs =
+          new Set();
+
         snap.forEach(
           child => {
 
@@ -2864,13 +2943,27 @@ function listenMessages(
             const msgID =
               child.key;
 
+            if (
+              renderedMessageIDs.has(
+                msgID
+              )
+            ) {
+
+              return;
+
+            }
+
+            renderedMessageIDs.add(
+              msgID
+            );
+
             hasMessages =
               true;
 
             if (
               data.uid &&
-              data.uid !==
-              currentUser.uid
+              data.uid !== currentUser.uid &&
+              !data.seenBy?.[currentUser.uid]
             ) {
 
               set(
@@ -3774,16 +3867,24 @@ function listenMessages(
 
         if (!hasMessages) {
 
-          messagesEl.innerHTML =
-            `
-              <div class="center muted">
-                No messages yet
-              </div>
-            `;
+          messagesEl.replaceChildren();
+
+          const emptyMessage =
+            document.createElement("div");
+
+          emptyMessage.className =
+            "center muted";
+
+          emptyMessage.textContent =
+            "No messages yet";
+
+          messagesEl.appendChild(
+            emptyMessage
+          );
 
         } else {
 
-          messagesEl.appendChild(
+          messagesEl.replaceChildren(
             fragment
           );
 
@@ -4132,7 +4233,8 @@ function sendMessage() {
 
   if (
     !currentUser ||
-    !activeRoom
+    !activeRoom ||
+    sendingMessage
   ) {
 
     return;
@@ -4183,11 +4285,20 @@ function sendMessage() {
 
     };
 
+  const roomID =
+    activeRoom;
+
+  sendingMessage =
+    true;
+
+  sendMsg.disabled =
+    true;
+
 
   push(
     ref(
       db,
-      `messages/${activeRoom}`
+      `messages/${roomID}`
     ),
     message
   )
@@ -4204,7 +4315,7 @@ function sendMessage() {
       remove(
         ref(
           db,
-          `typing/${activeRoom}/${currentUser.uid}`
+          `typing/${roomID}/${currentUser.uid}`
         )
       );
 
@@ -4221,6 +4332,17 @@ function sendMessage() {
         "Message failed to send.",
         "error"
       );
+
+    }
+  )
+  .finally(
+    () => {
+
+      sendingMessage =
+        false;
+
+      sendMsg.disabled =
+        false;
 
     }
   );
@@ -5966,6 +6088,8 @@ async function listenForKick(
 
 function clearUI() {
 
+  roomOpenRequest++;
+
   activeRoom =
     null;
 
@@ -5984,6 +6108,8 @@ function clearUI() {
       null;
 
   }
+
+  messageRenderRequest++;
 
   if (typingListener) {
 
@@ -6222,64 +6348,6 @@ document.addEventListener(
 
       openMenu =
         null;
-
-    }
-
-  }
-);
-
-
-// =========================================================
-// WINDOW LOAD
-// =========================================================
-
-window.addEventListener(
-  "load",
-  async () => {
-
-    if (!currentUser) return;
-
-    if (!activeRoom) return;
-
-    try {
-
-      const snap =
-        await get(
-          ref(
-            db,
-            `rooms/${activeRoom}`
-          )
-        );
-
-      if (
-        snap.exists()
-      ) {
-
-        const member =
-          await get(
-            ref(
-              db,
-              `members/${activeRoom}/${currentUser.uid}`
-            )
-          );
-
-        if (
-          member.exists()
-        ) {
-
-          await openRoom(
-            activeRoom
-          );
-
-        }
-
-      }
-
-    } catch (error) {
-
-      console.error(
-        error
-      );
 
     }
 
